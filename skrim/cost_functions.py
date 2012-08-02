@@ -1,4 +1,5 @@
 import numpy as np
+from math import exp, log
 
 sigmoid = lambda x: 1 / (1 + exp(-x))
 
