@@ -25,21 +25,19 @@ def regression_cost(x, y, theta, reg_type='linear'):
 
     if reg_type == 'linear':
         get_row_value = lambda row: np.dot(row, theta)
-        get_cost = lambda predicted, actual: (predicted - actual) ** 2
+        get_cost = lambda predicted, actual: ((predicted - actual) ** 2) * 2 / m
     elif reg_type == 'logistic':
         get_row_value = lambda row: sigmoid(np.dot(row, theta))
-        get_cost = lambda predicted, actual: -log(predicted if actual else (1 -predicted))
+        get_cost = lambda predicted, actual: -log(predicted if actual else (1 -predicted)) / m
     else:
         raise ValueError('unknown regression type %s' % reg_type)
 
     for i in xrange(m):
         row = x[i,:]
         row_value = get_row_value(row)
-        print row_value, y[i]
         cost += get_cost(row_value, y[i])
         gradients += row * (row_value - y[i])
 
-    cost /= m
     gradients /= m
     return cost, gradients
 
