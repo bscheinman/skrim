@@ -14,7 +14,7 @@ def regression_cost(x, y, theta, reg_type='linear'):
         return value: a tuple whose first value is the cost and second value is a list of feature gradients
     """
 
-    n, m = x.shape
+    m, n = x.shape
     if n != theta.shape[0]:
         raise ValueError('theta must have the same size as each feature vector')
     if m != y.shape[0]:
@@ -28,7 +28,7 @@ def regression_cost(x, y, theta, reg_type='linear'):
         get_cost = lambda predicted, actual: ((predicted - actual) ** 2) * 2 / m
     elif reg_type == 'logistic':
         get_row_value = lambda row: sigmoid(np.dot(row, theta))
-        get_cost = lambda predicted, actual: -log(predicted if actual else (1 -predicted)) / m
+        get_cost = lambda predicted, actual: -log(predicted if actual else (1 - predicted)) / m
     else:
         raise ValueError('unknown regression type %s' % reg_type)
 
