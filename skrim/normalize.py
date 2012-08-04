@@ -21,6 +21,13 @@ class Normalizer(object):
         raise NotImplementedError('all subclasses of Normalizer must implement normalize')
 
 
+    def reset(self):
+        """
+            resets the normalizer to be in its initial state
+        """
+        pass
+
+
 
 
 class StandardNormalizer(Normalizer):
@@ -31,8 +38,7 @@ class StandardNormalizer(Normalizer):
     """
 
     def __init__(self):
-        self.means = np.array()
-        self.stds = np.array()
+        self.reset()
 
     def set_basis(self, x):
         self.means = np.mean(x, 0)
@@ -47,3 +53,8 @@ class StandardNormalizer(Normalizer):
                 % (str(self.means.shape[0])), x.shape[1])
 
         return (x - self.means) / self.stds
+
+
+    def reset(self):
+        self.means = np.array()
+        self.stds = np.array()

@@ -16,6 +16,7 @@ class Classifier(object):
         self.generator = generator
         self.normalizer = normalizer
 
+
     def train(self, x, y):
         """
             x, y: features and results of training data
@@ -32,8 +33,8 @@ class Classifier(object):
         if x.shape[0] != y.shape[0]:
             raise ValueError('you must provide the same number of input features as input results')
 
-        self.x = np.append(self.x, x, 2)
-        self.y = np.append(self.y, y, 2)
+        self.x = np.append(self.x, x, 0)
+        self.y = np.append(self.y, y, 0)
         if normalizer:
             normalizer.set_basis(self.x)
 
@@ -42,15 +43,28 @@ class Classifier(object):
 
     def predict(self, x):
         """
-
+            x: features of testing data
+            returns a vector of predicted values (or classes) for each row of feature data
         """
+        if x.shape[1] != self.x.shape[1]:
+            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
+                % (str(self.x.shape[1]), str(x.shape[1])))
 
+        if normalizer:
+            x = normalizer.normalize(x)
+        m = x.shape[0]
+        x = np.append(np.ones(m).reshape([m, 1]), x, 1)        
+
+        # TODO: need a generalized way to apply sigmoid here for logistic regression
+        return np.dot(x, self.theta)
 
 
     def reset(self):
         self.x = np.array()
         self.y = np.array()
         self.theta = None
+        if self.normalizer:
+            self.normalizer.reset()
 
 
 
