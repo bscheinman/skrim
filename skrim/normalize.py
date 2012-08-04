@@ -40,6 +40,7 @@ class StandardNormalizer(Normalizer):
     def __init__(self):
         self.reset()
 
+
     def set_basis(self, x):
         self.means = np.mean(x, 0)
         self.stds = np.std(x, 0)
