@@ -5,12 +5,75 @@
 
 import numpy as np
 
-class GradientDescent(object):
+class Classifier(object):
 
-    def __init__(self, x, y, cost_function, alpha, max_iter = 1000, min_change = None):
+    def __init__(self, generator, normalizer = None):
+        """
+            generator: an instance of a subclass of ThetaGenerator that will calculate theta
+            normalize: an instance of a subclass of Normalizer that will be applied
+        """
+        self.reset()
+        self.generator = generator
+        self.normalizer = normalizer
+
+    def train(self, x, y):
+        """
+            x, y: features and results of training data
+            there is no return value but this method must be called before the classifier can make any predictions
+        """
+        if x.shape[1] != self.x.shape[1]:
+            raise ValueError('all training inputs must have the same number of features')
+        if y.shape[1] != 1:
+            # If y is provided as a row instead of a column, just transpose it into a column
+            if y.shape[0] == 1:
+                y = y.T
+            else:
+                raise ValueError('all training results must have one column')
+        if x.shape[0] != y.shape[0]:
+            raise ValueError('you must provide the same number of input features as input results')
+
+        self.x = np.append(self.x, x, 2)
+        self.y = np.append(self.y, y, 2)
+        if normalizer:
+            normalizer.set_basis(self.x)
+
+        self.theta = generator.calculate(normalizer.normalize(self.x) if normalizer else self.x, self.y)
+
+
+    def predict(self, x):
+        """
+
+        """
+
+
+
+    def reset(self):
+        self.x = np.array()
+        self.y = np.array()
+        self.theta = None
+
+
+
+class ThetaGenerator(object):
+
+    def calculate(self, x, y):
         """
             x: feature array (this should NOT already include leading 1s for x_0)
             y: classification vector
+
+            returns the resulting theta vector
+        """
+        raise NotImplementedError('all subclasses of ThetaGenerator must implement calculate')
+
+
+class GradientDescent(ThetaGenerator):
+
+    """
+        cost_history: a list of the computed cost after each step of gradient descent
+    """
+
+    def __init__(self, cost_function, alpha, max_iter = 1000, min_change = None):
+        """
             cost_function: a function to evaluate the cost of theta after each step
                 it will be called as:
                 cost_function(x, y, theta)
@@ -22,15 +85,17 @@ class GradientDescent(object):
             min_change: if this is specified, descent will stop whenever
                 the cost decrease is below this value
         """
-        self.y = y
         self.cost_function = cost_function
         self.alpha = alpha
         self.max_iter = max_iter
         self.min_change = min_change
 
+
+    def calculate(self, x, y):
+        
         # Pad x with leading zeros to act as x_0
         m = x.shape[0]
-        #x = np.append([[1] for i in xrange(x.shape[0])], x, 1)
+
         x = np.append(np.ones(m).reshape([m, 1]), x, 1)
         self.x = x
         m, n = self.x.shape
@@ -45,5 +110,4 @@ class GradientDescent(object):
             
             theta = theta - alpha * gradients
 
-        self.cost = self.cost_history[-1]
-        self.theta = theta
+        return theta
