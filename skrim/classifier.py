@@ -12,9 +12,9 @@ class Classifier(object):
             generator: an instance of a subclass of ThetaGenerator that will calculate theta
             normalize: an instance of a subclass of Normalizer that will be applied
         """
-        self.reset()
         self.generator = generator
         self.normalizer = normalizer
+        self.reset()
 
 
     def train(self, x, y):
@@ -22,7 +22,7 @@ class Classifier(object):
             x, y: features and results of training data
             there is no return value but this method must be called before the classifier can make any predictions
         """
-        if x.shape[1] != self.x.shape[1]:
+        if self.x.size and x.shape[1] != self.x.shape[1]:
             raise ValueError('all training inputs must have the same number of features')
         if y.shape[1] != 1:
             # If y is provided as a row instead of a column, just transpose it into a column
@@ -33,12 +33,14 @@ class Classifier(object):
         if x.shape[0] != y.shape[0]:
             raise ValueError('you must provide the same number of input features as input results')
 
-        self.x = np.append(self.x, x, 0)
-        self.y = np.append(self.y, y, 0)
-        if normalizer:
-            normalizer.set_basis(self.x)
+        self.x = np.append(self.x, x, 0) if self.x.size else x
+        self.y = np.append(self.y, y, 0) if self.y.size else y
 
-        self.theta = generator.calculate(normalizer.normalize(self.x) if normalizer else self.x, self.y)
+        if self.normalizer:
+            self.normalizer.set_basis(self.x)
+
+        self.theta = self.generator.calculate(self.normalizer.normalize(self.x) if self.normalizer else self.x, self.y)
+        self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
 
     def predict(self, x):
@@ -46,13 +48,16 @@ class Classifier(object):
             x: features of testing data
             returns a vector of predicted values (or classes) for each row of feature data
         """
-        if x.shape[1] != self.x.shape[1]:
-            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
-                % (str(self.x.shape[1]), str(x.shape[1])))
+        if not self.x.size:
+            raise Exception('this classifier has not been trained yet')
 
-        if normalizer:
-            x = normalizer.normalize(x)
-        m = x.shape[0]
+        m, n = x.shape
+        if n != self.x.shape[1]:
+            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
+                % (str(self.x.shape[1]), str(n)))
+
+        if self.normalizer:
+            x = self.normalizer.normalize(x)
         x = np.append(np.ones(m).reshape([m, 1]), x, 1)        
 
         # TODO: need a generalized way to apply sigmoid here for logistic regression
@@ -60,8 +65,8 @@ class Classifier(object):
 
 
     def reset(self):
-        self.x = np.array()
-        self.y = np.array()
+        self.x = np.array([])
+        self.y = np.array([])
         self.theta = None
         if self.normalizer:
             self.normalizer.reset()
@@ -109,19 +114,17 @@ class GradientDescent(ThetaGenerator):
         
         # Pad x with leading zeros to act as x_0
         m = x.shape[0]
-
         x = np.append(np.ones(m).reshape([m, 1]), x, 1)
-        self.x = x
-        m, n = self.x.shape
+        m, n = x.shape
 
         self.cost_history = []
         theta = np.zeros([n])
-        for i in xrange(max_iter):
-            cost, gradients = cost_function(x, y, theta)
+        for i in xrange(self.max_iter):
+            cost, gradients = self.cost_function(x, y, theta)
             self.cost_history.append(cost)
-            if cost == 0 or min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= min_change:
+            if cost == 0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
                 break
             
-            theta = theta - alpha * gradients
+            theta = theta - self.alpha * gradients
 
         return theta

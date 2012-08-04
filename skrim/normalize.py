@@ -56,5 +56,5 @@ class StandardNormalizer(Normalizer):
 
 
     def reset(self):
-        self.means = np.array()
-        self.stds = np.array()
+        self.means = np.array([])
+        self.stds = np.array([])
