@@ -21,17 +21,17 @@ class CostFunction(object):
 
 class RegressionCost(CostFunction):
 
-    def __init__(self, row_value_getter, row_cost_getter, regular_coeff=0):
+    def __init__(self, values_getter, costs_getter, regular_coeff=0):
         """
-            row_value_getter: a function that calculates the predicted value of an observation
-                given the feature values and theta
-            row_cost_getter: a function that calculates the cost of an observation given the
-                predicted value and the observed value
+            values_getter: a function that calculates the predicted values for each observation given 
+                the observed features and theta
+            costs_getter: a function that calculates the cost of each observation given the
+                predicted and observed values
             regular_coeff: the coefficient to use for regularization.  Usually referred to as lambda,
                 but for obvious reasons can't be named that.  If set to 0, regularization won't be used.
         """
-        self.get_row_value = row_value_getter
-        self.get_cost = row_cost_getter
+        self.get_values = values_getter
+        self.get_costs = costs_getter
         self.regular_coeff = regular_coeff
 
 
@@ -50,15 +50,9 @@ class RegressionCost(CostFunction):
         if m != y.shape[0]:
             raise ValueError('features and results must have the same number of observations')
 
-        cost = 0
-        gradients = np.zeros([n,1])
-
-        # TODO: vectorize this
-        for i in xrange(m):
-            row = x[i,:].reshape([1, n])
-            row_value = self.get_row_value(row, theta)
-            cost += self.get_cost(row_value, y[i])
-            gradients += (row * (row_value - y[i])).T
+        predicted = self.get_values(x, theta)
+        cost = sum(self.get_costs(predicted, y))
+        gradients = sum(x * (predicted - y), 0).reshape([n, 1])
 
         if self.regular_coeff:
             cost += (regular_coeff / 2) * sum(theta[1:] ^ 2)
@@ -75,7 +69,7 @@ class RegressionCost(CostFunction):
 class LinearRegression(RegressionCost):
     def __init__(self, regular_coeff = 0):
         super(LinearRegression, self).__init__(
-            (lambda row, theta: np.dot(row, theta)),
+            (lambda x, theta: np.dot(x, theta)),
             (lambda predicted, actual: ((predicted - actual) ** 2) * 2),
             regular_coeff)
 
@@ -83,8 +77,8 @@ class LinearRegression(RegressionCost):
 class LogisticRegression(RegressionCost):
     def __init__(self, regular_coeff = 0):
         super(LogisticRegression, self).__init__(
-            (lambda row, theta: sigmoid(np.dot(row, theta))),
-            (lambda predicted, actual: -log(predicted if actual else (1 - predicted))),
+            (lambda x, theta: sigmoid_curry(np.dot(x, theta))),
+            (lambda predicted, actual: -np.vectorize(log)(predicted if actual else (1 - predicted))),
             regular_coeff)
 
 
