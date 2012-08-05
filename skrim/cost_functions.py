@@ -32,7 +32,7 @@ class RegressionCost(CostFunction):
         """
         self.get_values = values_getter
         self.get_costs = costs_getter
-        self.regular_coeff = regular_coeff
+        self.regular_coeff = float(regular_coeff)
 
 
     def calculate(self, x, y, theta):
@@ -55,7 +55,7 @@ class RegressionCost(CostFunction):
         gradients = sum(x * (predicted - y), 0).reshape([n, 1])
 
         if self.regular_coeff:
-            cost += (regular_coeff / 2) * sum(theta[1:] ^ 2)
+            cost += (self.regular_coeff / 2) * sum(theta[1:] ** 2)
             for i in xrange(theta.shape[0]):
                 if not i:
                     continue
