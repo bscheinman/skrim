@@ -5,8 +5,7 @@
 
 import numpy as np
 from numpy import linalg
-
-pad_ones = lambda x: np.append(np.ones([x.shape[0], 1]), x, 1)
+from skrimutils import pad_ones
 
 class Classifier(object):
 

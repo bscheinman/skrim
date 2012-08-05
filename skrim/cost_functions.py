@@ -1,10 +1,14 @@
 import numpy as np
 from math import exp, log
+from skrimutils import pad_ones
 
 sigmoid = lambda x: 1 / (1 + exp(-x))
 sigmoid_curry = np.vectorize(sigmoid)
 
-
+def sigmoid_gradient(x):
+    x_sig = sigmoid(x)
+    return x * (1 - x)
+sigmoid_gradient_curry = np.vectorize(sigmoid_gradient)
 
 class CostFunction(object):
     
@@ -95,31 +99,47 @@ class NeuralNetCost(CostFunction):
         self.n_input = n_input
         self.n_hidden = n_hidden
         self.n_labels = n_labels
-        self.regular_coeff = regular_coeff
+        self.regular_coeff = float(regular_coeff)
 
 
     def calculate(self, x, y, theta):
 
-        theta_1 = theta[0 : n_hidden * (n_input + 1) - 1].reshape([n_hidden, n_input + 1])
-        theta_2 = theta[n_hidden * (n_input + 1) : theta.size - 1]\
-            .reshape([n_labels, n_hidden + 1])
+        theta_1 = theta[0 : self.n_hidden * (self.n_input + 1)]
+        theta_1 = theta_1.reshape([self.n_hidden, self.n_input + 1])
+        theta_2 = theta[self.n_hidden * (self.n_input + 1) : theta.size]
+        theta_2 = theta_2.reshape([self.n_labels, self.n_hidden + 1])
 
         m = x.shape[0]
-        x = np.append(np.ones(m, 1), x, 1)
+        x = pad_ones(x)
         cost = 0
 
-        for i in xrange(m):
-            a1 = x[i,:]
-            a2 = sigmoid_curry(np.dot(a1, theta_1.T))
-            a2_input = np.append(np.ones(n_hidden, 1), a2, 1)
-            # a3 represents the predicted values
-            a3 = sigmoid_curry(np.dot(a2_input, theta_2.T))
-            actual = np.zeros(1, num_labels);
-            actual[y[i]] = 1;
-            cost -= sum(actual * log(a3) + (1 - actual) * log(1 - a3))
+        z2 = np.dot(x, theta_1.T)
+        a2 = sigmoid_curry(z2)
+        a2_input = pad_ones(a2)
+        # a3 represents the predicted values
+        a3 = sigmoid_curry(np.dot(a2_input, theta_2.T))
+        actual = np.zeros(a3.shape)
+        for i in xrange(actual.shape[1]):
+            actual[:,i] = (y == i).reshape(10)
+        cost = -sum(sum(actual * np.log(a3) + (1 - actual) * np.log(1 - a3)))
 
+        d3 = a3 - actual
+        d2 = np.dot(d3, theta_2[:,1:]) * sigmoid_gradient_curry(z2)
+
+        theta_1_grad = np.dot(d2.T, x)
+        theta_2_grad = np.dot(d3.T, pad_ones(a2))
+
+        # adjust for regularization
         if self.regular_coeff:
-            cost += (regular_coeff / 2) * (sum(theta_1[:,1:] ** 2) + sum(theta_2[:,1:] ** 2))
+            cost += (self.regular_coeff / 2) * (sum(theta_1[:,1:] ** 2) + sum(theta_2[:,1:] ** 2))
+            theta_1_grad[:,1:] += self.regular_coeff * theta_1[:,1:]
+            theta_2_grad[:,1:] += self.regular_coeff * theta_2[:,1:]
 
         cost /= m
-        return cost
+        theta_1_grad /= m
+        theta_2_grad /= m
+
+        grad = np.append(theta_1_grad.reshape(theta_1_grad.size, 1),
+            theta_2_grad.reshape(theta_2_grad.size, 1), 0)
+
+        return cost, grad
