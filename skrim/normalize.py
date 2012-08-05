@@ -44,7 +44,6 @@ class StandardNormalizer(Normalizer):
     def set_basis(self, x):
         self.means = np.mean(x, 0)
         self.stds = np.std(x, 0)
-        return self.normalize(x)
 
 
     def normalize(self, x):

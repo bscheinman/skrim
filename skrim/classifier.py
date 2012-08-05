@@ -4,6 +4,9 @@
 """
 
 import numpy as np
+from numpy import linalg
+
+pad_ones = lambda x: np.append(np.ones([x.shape[0], 1]), x, 1)
 
 class Classifier(object):
 
@@ -58,7 +61,7 @@ class Classifier(object):
 
         if self.normalizer:
             x = self.normalizer.normalize(x)
-        x = np.append(np.ones(m).reshape([m, 1]), x, 1)        
+        x = pad_ones(x)    
 
         # TODO: need a generalized way to apply sigmoid here for logistic regression
         return np.dot(x, self.theta)
@@ -93,16 +96,14 @@ class GradientDescent(ThetaGenerator):
 
     def __init__(self, cost_function, alpha, max_iter = 1000, min_change = None):
         """
-            cost_function: a function to evaluate the cost of theta after each step
-                it will be called as:
-                cost_function(x, y, theta)
-                and should return a tuple whose first value is the cost and whose second
-                value is an array of gradients for each feature.
-                this parameter can also be a string naming one of a number of predefined functions
+            cost_function: an instance of a subclass of CostFunction that will be used
+                to evaluate the cost of theta after each step.  It will be called as:
+                cost_function.calculate(x, y, theta)
+                and should return a tuple whose first value is the cost
+                    and whose second value is an array of gradients for each feature.
             alpha: gradient descent step size
             max_iter: maximum number of iterations to perform
-            min_change: if this is specified, descent will stop whenever
-                the cost decrease is below this value
+            min_change: if this is specified, descent will stop whenever the cost decrease is below this value
         """
         self.cost_function = cost_function
         self.alpha = alpha
@@ -114,13 +115,13 @@ class GradientDescent(ThetaGenerator):
         
         # Pad x with leading zeros to act as x_0
         m = x.shape[0]
-        x = np.append(np.ones(m).reshape([m, 1]), x, 1)
+        x = pad_ones(x)
         m, n = x.shape
 
         self.cost_history = []
-        theta = np.zeros([n])
+        theta = np.zeros([n, 1])
         for i in xrange(self.max_iter):
-            cost, gradients = self.cost_function(x, y, theta)
+            cost, gradients = self.cost_function.calculate(x, y, theta)
             self.cost_history.append(cost)
             if cost == 0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
                 break
@@ -128,3 +129,15 @@ class GradientDescent(ThetaGenerator):
             theta = theta - self.alpha * gradients
 
         return theta
+
+
+class NormalEquation(ThetaGenerator):
+    """
+        uses the normal equation to solve for the exact value of theta.  this is only suitable for smaller data sets
+    """
+
+    def calculate(self, x, y):
+        x_calc = pad_ones(x)
+        x_calc_t = x_calc.T
+        # theta = (xT * x)^-1 * xT * y
+        return np.dot(np.dot(linalg.inv((np.dot(x_calc_t, x_calc))), x_calc_t), y)

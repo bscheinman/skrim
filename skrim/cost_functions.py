@@ -51,19 +51,21 @@ class RegressionCost(CostFunction):
             raise ValueError('features and results must have the same number of observations')
 
         cost = 0
-        gradients = np.zeros(n)
+        gradients = np.zeros([n,1])
 
         # TODO: vectorize this
         for i in xrange(m):
-            row = x[i,:]
+            row = x[i,:].reshape([1, n])
             row_value = self.get_row_value(row, theta)
             cost += self.get_cost(row_value, y[i])
-            gradients += row * (row_value - y[i])
+            gradients += (row * (row_value - y[i])).T
 
-        if regular_coeff:
+        if self.regular_coeff:
             cost += (regular_coeff / 2) * sum(theta[1:] ^ 2)
-            for i in xrange(theta.shape[0] - 1):
-                gradients[i + 1] += self.regular_coeff * theta[i + 1][0]
+            for i in xrange(theta.shape[0]):
+                if not i:
+                    continue
+                gradients[i] += self.regular_coeff * theta[i][0]
 
         cost /= m
         gradients /= m
