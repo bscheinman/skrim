@@ -42,14 +42,16 @@ target_theta1 = np.array([[1.17525, 0.05209, 0.45196, -0.07445]]).T
 test_vals1 = np.array([[-7, 3, 1], [0, 9, -4]])
 target_predictions1 = np.array([[2.09205], [5.54069]])
 
+PRECISION = 0.0001
+
 
 class NormalizationTest(unittest.TestCase):
 
 	def test_1(self):
 		n = normalize.StandardNormalizer()
 		n.set_basis(x1)
-		self.assertTrue(np.max(n.normalize(x1) - x1_normal) < 0.0001)
-		self.assertTrue(np.max(n.normalize(np.array([[5, -2, 0]])) - np.array([[0.55567, -0.27965, -0.43217]])) < 0.0001)
+		self.assertTrue(np.max(n.normalize(x1) - x1_normal) < PRECISION)
+		self.assertTrue(np.max(n.normalize(np.array([[5, -2, 0]])) - np.array([[0.55567, -0.27965, -0.43217]])) < PRECISION)
 
 
 class LinearRegressionTest(unittest.TestCase):
@@ -61,8 +63,8 @@ class LinearRegressionTest(unittest.TestCase):
 		c = cl.Classifier(cl.NormalEquation())
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.theta - target_theta1) < 0.0001)
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < 0.0001)
+		self.assertTrue(np.max(c.theta - target_theta1) < PRECISION)
+		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
 
 
 	def test_2(self):
@@ -72,7 +74,7 @@ class LinearRegressionTest(unittest.TestCase):
 		c = cl.Classifier(cl.NormalEquation(), normalizer = normalize.StandardNormalizer())
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < 0.0001)
+		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
 
 
 	def test_3(self):
@@ -83,8 +85,20 @@ class LinearRegressionTest(unittest.TestCase):
 		c = cl.Classifier(cl.GradientDescent(cost.LinearRegression(), alpha=0.05, max_iter=1000))
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.theta - target_theta1) < 0.0001)
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < 0.0001)
+		self.assertTrue(np.max(c.theta - target_theta1) < PRECISION)
+		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
+
+
+	def test_4(self):
+		"""
+			gradient descent, with normalization, no regularization
+		"""
+
+		c = cl.Classifier(cl.GradientDescent(cost.LinearRegression(), alpha=0.05, max_iter=1000),
+			normalizer = normalize.StandardNormalizer())
+		c.train(x1, y1)
+
+		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
 
 
 if __name__ == '__main__':
