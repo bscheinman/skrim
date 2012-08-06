@@ -5,17 +5,23 @@
 
 import numpy as np
 from numpy import linalg
-from skrimutils import pad_ones
+
+import cost_functions as cost
+from skrimutils import pad_ones, sigmoid
+
 
 class Classifier(object):
 
     def __init__(self, generator, normalizer = None):
         """
             generator: an instance of a subclass of ThetaGenerator that will calculate theta
-            normalize: an instance of a subclass of Normalizer that will be applied
+            normalize: an instance of a subclass of Normalizer that will be applied (optional)
+
+            many subclasses of Classifier will want to define self.cost_function
         """
         self.generator = generator
         self.normalizer = normalizer
+        self.cost_function = None
         self.reset()
 
 
@@ -41,7 +47,8 @@ class Classifier(object):
         if self.normalizer:
             self.normalizer.set_basis(self.x)
 
-        self.theta = self.generator.calculate(self.normalizer.normalize(self.x) if self.normalizer else self.x, self.y)
+        self.theta = self.generator.calculate(self.cost_function,
+            self.normalizer.normalize(self.x) if self.normalizer else self.x, self.y)
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
 
@@ -53,17 +60,15 @@ class Classifier(object):
         if not self.x.size:
             raise Exception('this classifier has not been trained yet')
 
-        m, n = x.shape
-        if n != self.x.shape[1]:
-            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
-                % (str(self.x.shape[1]), str(n)))
-
         if self.normalizer:
             x = self.normalizer.normalize(x)
         x = pad_ones(x)    
 
-        # TODO: need a generalized way to apply sigmoid here for logistic regression
-        return np.dot(x, self.theta)
+        return self._predict_impl(x)
+
+
+    def _predict_impl(self, x):
+        raise NotImplementedError('all subclasses of Classifier need to implement _predict_impl')
 
 
     def reset(self):
@@ -74,11 +79,41 @@ class Classifier(object):
             self.normalizer.reset()
 
 
+class LinearClassifier(Classifier):
+
+    def __init__(self, generator, normalizer = None, regular_coeff = 0):
+        super(LinearClassifier, self).__init__(generator, normalizer)
+        self.cost_function = cost.LinearRegression(regular_coeff = regular_coeff)
+
+    def _predict_impl(self, x):
+        n = x.shape[1]
+        if n != self.theta.shape[0]:
+            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
+                % (str(self.x.shape[1]), str(n)))
+
+        return np.dot(x, self.theta)
+
+
+class LogisticClassifier(LinearClassifier):
+
+    def __init__(self, generator, normalizer = None, regular_coeff = 0):
+        super(LogisticClassifier, self).__init__(generator, normalizer)
+        self.cost_function = cost.LogisticRegression(regular_coeff = regular_coeff)
+
+    def _predict_impl(self, x):
+        return sigmoid(super(LogisticClassifier, self)._predict_impl(x))
+
+
 
 class ThetaGenerator(object):
 
-    def calculate(self, x, y):
+    def calculate(self, cost_function, x, y):
         """
+            cost_function: an instance of a subclass of CostFunction that will be used
+                to evaluate the cost of theta after each step.  It will be called as:
+                cost_function.calculate(x, y, theta)
+                and should return a tuple whose first value is the cost
+                    and whose second value is an array of gradients for each feature.
             x: feature array (this should NOT already include leading 1s for x_0)
             y: classification vector
 
@@ -93,26 +128,19 @@ class GradientDescent(ThetaGenerator):
         cost_history: a list of the computed cost after each step of gradient descent
     """
 
-    def __init__(self, cost_function, alpha, max_iter = 1000, min_change = None):
+    def __init__(self, alpha, max_iter, min_change = None):
         """
-            cost_function: an instance of a subclass of CostFunction that will be used
-                to evaluate the cost of theta after each step.  It will be called as:
-                cost_function.calculate(x, y, theta)
-                and should return a tuple whose first value is the cost
-                    and whose second value is an array of gradients for each feature.
             alpha: gradient descent step size
             max_iter: maximum number of iterations to perform
             min_change: if this is specified, descent will stop whenever the cost decrease is below this value
         """
-        self.cost_function = cost_function
         self.alpha = alpha
         self.max_iter = max_iter
         self.min_change = min_change
 
 
-    def calculate(self, x, y):
+    def calculate(self, cost_function, x, y):
         
-        # Pad x with leading zeros to act as x_0
         m = x.shape[0]
         x = pad_ones(x)
         m, n = x.shape
@@ -120,7 +148,7 @@ class GradientDescent(ThetaGenerator):
         self.cost_history = []
         theta = np.zeros([n, 1])
         for i in xrange(self.max_iter):
-            cost, gradients = self.cost_function.calculate(x, y, theta)
+            cost, gradients = cost_function.calculate(x, y, theta)
             self.cost_history.append(cost)
             if cost == 0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
                 break
@@ -135,8 +163,8 @@ class NormalEquation(ThetaGenerator):
         uses the normal equation to solve for the exact value of theta.  this is only suitable for smaller data sets
     """
 
-    def calculate(self, x, y):
+    # cost_function isn't used in this class and will be ignored
+    def calculate(self, cost_function, x, y):
         x_calc = pad_ones(x)
         x_calc_t = x_calc.T
-        # theta = (xT * x)^-1 * xT * y
         return np.dot(np.dot(linalg.inv((np.dot(x_calc_t, x_calc))), x_calc_t), y)

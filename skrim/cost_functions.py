@@ -1,14 +1,7 @@
 import numpy as np
 from math import exp, log
-from skrimutils import pad_ones
+import skrimutils as util
 
-sigmoid = lambda x: 1 / (1 + exp(-x))
-sigmoid_curry = np.vectorize(sigmoid)
-
-def sigmoid_gradient(x):
-    x_sig = sigmoid(x)
-    return x * (1 - x)
-sigmoid_gradient_curry = np.vectorize(sigmoid_gradient)
 
 class CostFunction(object):
     
@@ -25,17 +18,11 @@ class CostFunction(object):
 
 class RegressionCost(CostFunction):
 
-    def __init__(self, values_getter, costs_getter, regular_coeff=0):
+    def __init__(self, regular_coeff=0):
         """
-            values_getter: a function that calculates the predicted values for each observation given 
-                the observed features and theta
-            costs_getter: a function that calculates the cost of each observation given the
-                predicted and observed values
             regular_coeff: the coefficient to use for regularization.  Usually referred to as lambda,
                 but for obvious reasons can't be named that.  If set to 0, regularization won't be used.
         """
-        self.get_values = values_getter
-        self.get_costs = costs_getter
         self.regular_coeff = float(regular_coeff)
 
 
@@ -54,8 +41,8 @@ class RegressionCost(CostFunction):
         if m != y.shape[0]:
             raise ValueError('features and results must have the same number of observations')
 
-        predicted = self.get_values(x, theta)
-        cost = sum(self.get_costs(predicted, y))
+        predicted = self._get_values(x, theta)
+        cost = sum(self._get_costs(predicted, y))
         gradients = sum(x * (predicted - y), 0).reshape([n, 1])
 
         if self.regular_coeff:
@@ -70,20 +57,42 @@ class RegressionCost(CostFunction):
         return cost, gradients
 
 
+    def _get_values(self, x, theta):
+        """
+            calculates the predicted values for each observation given the observed values and current feature weights
+
+            x: the feature array
+            theta: the current feature weights
+        """
+        raise NotImplementedError('all subclasses of RegressionCost must implement get_values')
+
+
+    def _get_costs(self, predicted, actual):
+        """
+            calculates the costs for each prediction
+
+            predicted: an array of predicted output values
+            actual: an array of actual observed output values
+        """
+        raise NotImplementedError('all subclasses of RegressionCost must implement get_costs')
+
+
 class LinearRegression(RegressionCost):
-    def __init__(self, regular_coeff = 0):
-        super(LinearRegression, self).__init__(
-            (lambda x, theta: np.dot(x, theta)),
-            (lambda predicted, actual: ((predicted - actual) ** 2) * 2),
-            regular_coeff)
+    
+    def _get_values(self, x, theta):
+        return np.dot(x, theta)
+
+    def _get_costs(self, predicted, actual):
+        return ((predicted - actual) ** 2) * 2
 
 
 class LogisticRegression(RegressionCost):
-    def __init__(self, regular_coeff = 0):
-        super(LogisticRegression, self).__init__(
-            (lambda x, theta: sigmoid_curry(np.dot(x, theta))),
-            (lambda predicted, actual: -np.vectorize(log)(predicted if actual else (1 - predicted))),
-            regular_coeff)
+    
+    def _get_values(self, x, theta):
+        return util.sigmoid_curry(np.dot(x, theta))
+
+    def _get_costs(self, predicted, actual):
+        return -np.vectorize(log)(predicted if actual else (1 - predicted))
 
 
 class NeuralNetCost(CostFunction):
@@ -104,30 +113,28 @@ class NeuralNetCost(CostFunction):
 
     def calculate(self, x, y, theta):
 
-        theta_1 = theta[0 : self.n_hidden * (self.n_input + 1)]
-        theta_1 = theta_1.reshape([self.n_hidden, self.n_input + 1])
-        theta_2 = theta[self.n_hidden * (self.n_input + 1) : theta.size]
-        theta_2 = theta_2.reshape([self.n_labels, self.n_hidden + 1])
+        theta_1 = theta[0 : self.n_hidden * (self.n_input + 1)].reshape([self.n_hidden, self.n_input + 1])
+        theta_2 = theta[self.n_hidden * (self.n_input + 1) : theta.size].reshape([self.n_labels, self.n_hidden + 1])
 
         m = x.shape[0]
-        x = pad_ones(x)
+        x = util.pad_ones(x)
         cost = 0
 
         z2 = np.dot(x, theta_1.T)
-        a2 = sigmoid_curry(z2)
-        a2_input = pad_ones(a2)
+        a2 = util.sigmoid_curry(z2)
+        a2_input = util.pad_ones(a2)
         # a3 represents the predicted values
-        a3 = sigmoid_curry(np.dot(a2_input, theta_2.T))
+        a3 = util.sigmoid_curry(np.dot(a2_input, theta_2.T))
         actual = np.zeros(a3.shape)
         for i in xrange(actual.shape[1]):
             actual[:,i] = (y == i).reshape(10)
         cost = -sum(sum(actual * np.log(a3) + (1 - actual) * np.log(1 - a3)))
 
         d3 = a3 - actual
-        d2 = np.dot(d3, theta_2[:,1:]) * sigmoid_gradient_curry(z2)
+        d2 = np.dot(d3, theta_2[:,1:]) * util.sigmoid_gradient_curry(z2)
 
         theta_1_grad = np.dot(d2.T, x)
-        theta_2_grad = np.dot(d3.T, pad_ones(a2))
+        theta_2_grad = np.dot(d3.T, util.pad_ones(a2))
 
         # adjust for regularization
         if self.regular_coeff:

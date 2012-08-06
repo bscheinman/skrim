@@ -60,7 +60,7 @@ class LinearRegressionTest(unittest.TestCase):
 		"""
 			normal equation, no normalization
 		"""
-		c = cl.Classifier(cl.NormalEquation())
+		c = cl.LinearClassifier(cl.NormalEquation())
 		c.train(x1, y1)
 
 		self.assertTrue(np.max(c.theta - target_theta1) < PRECISION)
@@ -71,7 +71,7 @@ class LinearRegressionTest(unittest.TestCase):
 		"""
 			normal equation, with normalization
 		"""
-		c = cl.Classifier(cl.NormalEquation(), normalizer = normalize.StandardNormalizer())
+		c = cl.LinearClassifier(cl.NormalEquation(), normalizer = normalize.StandardNormalizer())
 		c.train(x1, y1)
 
 		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
@@ -82,7 +82,7 @@ class LinearRegressionTest(unittest.TestCase):
 			gradient descent, no normalization, no regularization
 		"""
 
-		c = cl.Classifier(cl.GradientDescent(cost.LinearRegression(), alpha=0.05, max_iter=1000))
+		c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000))
 		c.train(x1, y1)
 
 		self.assertTrue(np.max(c.theta - target_theta1) < PRECISION)
@@ -94,7 +94,7 @@ class LinearRegressionTest(unittest.TestCase):
 			gradient descent, with normalization, no regularization
 		"""
 
-		c = cl.Classifier(cl.GradientDescent(cost.LinearRegression(), alpha=0.05, max_iter=1000),
+		c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000),
 			normalizer = normalize.StandardNormalizer())
 		c.train(x1, y1)
 
