@@ -1,5 +1,5 @@
 import numpy as np
-from math import exp, log
+from math import log
 import skrimutils as util
 
 
@@ -92,7 +92,7 @@ class LogisticRegression(RegressionCost):
         return util.sigmoid_curry(np.dot(x, theta))
 
     def _get_costs(self, predicted, actual):
-        return -np.vectorize(log)(predicted if actual else (1 - predicted))
+        return -np.log(predicted * actual + (1 - predicted) * (1 - actual))
 
 
 class NeuralNetCost(CostFunction):

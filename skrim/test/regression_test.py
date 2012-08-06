@@ -36,11 +36,14 @@ x1_normal = np.array([
 ])
 
 y1 = np.array([[-3, 4, -5, -1, 0, 7, 3, -5, 4, 4]]).T
+y1_logistic = np.array([[1, 0, 0, 0, 1, 0, 1, 1, 0, 1]]).T
 
 target_theta1 = np.array([[1.17525, 0.05209, 0.45196, -0.07445]]).T
+target_theta1_logistic = np.array([[-0.30492, -0.08170, -0.02009, 0.19150]]).T
 
 test_vals1 = np.array([[-7, 3, 1], [0, 9, -4]])
 target_predictions1 = np.array([[2.09205], [5.54069]])
+target_predictions1_logistic = np.array([[0.59826], [0.22240]])
 
 PRECISION = 0.0001
 
@@ -99,6 +102,19 @@ class LinearRegressionTest(unittest.TestCase):
 		c.train(x1, y1)
 
 		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
+
+
+class LogisticRegressionTest(unittest.TestCase):
+
+	def test_1(self):
+		"""
+			gradient descent, no normalization
+		"""
+		c = cl.LogisticClassifier(cl.GradientDescent(alpha=0.1, max_iter=1000))
+		c.train(x1, y1_logistic)
+
+		self.assertTrue(np.max(c.theta - target_theta1_logistic) < PRECISION)
+		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1_logistic) < PRECISION)
 
 
 if __name__ == '__main__':

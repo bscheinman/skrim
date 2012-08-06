@@ -1,5 +1,5 @@
 """
-    This file contains classes that perform logistic regression on data sets with arbitrary features
+    This file contains classes that perform classification on data sets with arbitrary features
     Data should already be cleaned and structured before they are passed here
 """
 
@@ -7,7 +7,7 @@ import numpy as np
 from numpy import linalg
 
 import cost_functions as cost
-from skrimutils import pad_ones, sigmoid
+from skrimutils import pad_ones, sigmoid_curry
 
 
 class Classifier(object):
@@ -101,7 +101,7 @@ class LogisticClassifier(LinearClassifier):
         self.cost_function = cost.LogisticRegression(regular_coeff = regular_coeff)
 
     def _predict_impl(self, x):
-        return sigmoid(super(LogisticClassifier, self)._predict_impl(x))
+        return sigmoid_curry(super(LogisticClassifier, self)._predict_impl(x))
 
 
 
@@ -120,6 +120,7 @@ class ThetaGenerator(object):
             returns the resulting theta vector
         """
         raise NotImplementedError('all subclasses of ThetaGenerator must implement calculate')
+
 
 
 class GradientDescent(ThetaGenerator):
