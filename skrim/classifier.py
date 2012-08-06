@@ -129,12 +129,19 @@ class GradientDescent(ThetaGenerator):
         cost_history: a list of the computed cost after each step of gradient descent
     """
 
-    def __init__(self, alpha, max_iter, min_change = None):
+    def __init__(self, alpha, max_iter, min_change = 0):
         """
             alpha: gradient descent step size
             max_iter: maximum number of iterations to perform
             min_change: if this is specified, descent will stop whenever the cost decrease is below this value
         """
+
+        if alpha <= 0 or max_iter <= 0:
+            raise ValueError('you must provide positive values for alpha and max_iter')
+
+        if min_change < 0:
+            raise ValueError('negative values are invalid for min_change')
+
         self.alpha = alpha
         self.max_iter = max_iter
         self.min_change = min_change
@@ -151,7 +158,7 @@ class GradientDescent(ThetaGenerator):
         for i in xrange(self.max_iter):
             cost, gradients = cost_function.calculate(x, y, theta)
             self.cost_history.append(cost)
-            if cost == 0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
+            if cost == 0.0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
                 break
             
             theta = theta - self.alpha * gradients

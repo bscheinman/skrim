@@ -53,8 +53,8 @@ class NormalizationTest(unittest.TestCase):
 	def test_1(self):
 		n = normalize.StandardNormalizer()
 		n.set_basis(x1)
-		self.assertTrue(np.max(n.normalize(x1) - x1_normal) < PRECISION)
-		self.assertTrue(np.max(n.normalize(np.array([[5, -2, 0]])) - np.array([[0.55567, -0.27965, -0.43217]])) < PRECISION)
+		self.assertTrue(np.max(np.abs((n.normalize(x1) - x1_normal))) < PRECISION)
+		self.assertTrue(np.max(np.abs(n.normalize(np.array([[5, -2, 0]])) - np.array([[0.55567, -0.27965, -0.43217]]))) < PRECISION)
 
 
 class LinearRegressionTest(unittest.TestCase):
@@ -66,8 +66,8 @@ class LinearRegressionTest(unittest.TestCase):
 		c = cl.LinearClassifier(cl.NormalEquation())
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.theta - target_theta1) < PRECISION)
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.theta - target_theta1)) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 
 
 	def test_2(self):
@@ -77,7 +77,7 @@ class LinearRegressionTest(unittest.TestCase):
 		c = cl.LinearClassifier(cl.NormalEquation(), normalizer = normalize.StandardNormalizer())
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 
 
 	def test_3(self):
@@ -85,11 +85,11 @@ class LinearRegressionTest(unittest.TestCase):
 			gradient descent, no normalization, no regularization
 		"""
 
-		c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000))
+		c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000, min_change=1e-10))
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.theta - target_theta1) < PRECISION)
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.theta - target_theta1)) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 
 
 	def test_4(self):
@@ -97,11 +97,11 @@ class LinearRegressionTest(unittest.TestCase):
 			gradient descent, with normalization, no regularization
 		"""
 
-		c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000),
+		c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000, min_change=1e-10),
 			normalizer = normalize.StandardNormalizer())
 		c.train(x1, y1)
 
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 
 
 class LogisticRegressionTest(unittest.TestCase):
@@ -113,8 +113,8 @@ class LogisticRegressionTest(unittest.TestCase):
 		c = cl.LogisticClassifier(cl.GradientDescent(alpha=0.1, max_iter=1000))
 		c.train(x1, y1_logistic)
 
-		self.assertTrue(np.max(c.theta - target_theta1_logistic) < PRECISION)
-		self.assertTrue(np.max(c.predict(test_vals1) - target_predictions1_logistic) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.theta - target_theta1_logistic)) < PRECISION)
+		self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1_logistic)) < PRECISION)
 
 
 if __name__ == '__main__':
