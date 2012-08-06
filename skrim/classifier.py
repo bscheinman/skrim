@@ -3,8 +3,8 @@
     Data should already be cleaned and structured before they are passed here
 """
 
+from abc import abstractmethod
 import numpy as np
-from numpy import linalg
 
 import cost_functions as cost
 from skrimutils import pad_ones, sigmoid_curry
@@ -67,8 +67,11 @@ class Classifier(object):
         return self._predict_impl(x)
 
 
+    @abstractmethod
     def _predict_impl(self, x):
-        raise NotImplementedError('all subclasses of Classifier need to implement _predict_impl')
+        """
+            performs the prediction logic on the test input and returns a matrix with a single prediction in each row
+        """
 
 
     def reset(self):
@@ -107,6 +110,7 @@ class LogisticClassifier(LinearClassifier):
 
 class ThetaGenerator(object):
 
+    @abstractmethod
     def calculate(self, cost_function, x, y):
         """
             cost_function: an instance of a subclass of CostFunction that will be used
@@ -119,7 +123,6 @@ class ThetaGenerator(object):
 
             returns the resulting theta vector
         """
-        raise NotImplementedError('all subclasses of ThetaGenerator must implement calculate')
 
 
 
@@ -175,4 +178,4 @@ class NormalEquation(ThetaGenerator):
     def calculate(self, cost_function, x, y):
         x_calc = pad_ones(x)
         x_calc_t = x_calc.T
-        return np.dot(np.dot(linalg.inv((np.dot(x_calc_t, x_calc))), x_calc_t), y)
+        return np.dot(np.dot(np.linalg.inv((np.dot(x_calc_t, x_calc))), x_calc_t), y)

@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import numpy as np
 
 class Normalizer(object):
@@ -5,27 +6,27 @@ class Normalizer(object):
 
     """
 
+    @abstractmethod
     def set_basis(self, x):
         """
             x: training data to use as the basis for all normalizing
             this method must be called before normalizing any data
         """
-        raise NotImplementedError('all subclasses of Normalizer must implement set_basis')
 
 
+    @abstractmethod
     def normalize(self, x):
         """
             x: testing (or training) data to be normalized
             returns input data normalized to the scale of the basis data
         """
-        raise NotImplementedError('all subclasses of Normalizer must implement normalize')
 
 
+    @abstractmethod
     def reset(self):
         """
             resets the normalizer to be in its initial state
         """
-        pass
 
 
 

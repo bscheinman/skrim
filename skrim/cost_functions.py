@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import numpy as np
 from math import log
 import skrimutils as util
@@ -5,6 +6,7 @@ import skrimutils as util
 
 class CostFunction(object):
     
+    @abstractmethod
     def calculate(self, x, y, theta):
         """
             Calculates the cost and feature gradients using the following arguments:
@@ -13,7 +15,6 @@ class CostFunction(object):
             theta: the current feature weights
             return value: a tuple whose first value is the cost and second value is a list of feature gradients
         """
-        raise NotImplementedError('all subclasses of CostFunction must implement calculate')
 
 
 class RegressionCost(CostFunction):
@@ -57,6 +58,7 @@ class RegressionCost(CostFunction):
         return cost, gradients
 
 
+    @abstractmethod
     def _get_values(self, x, theta):
         """
             calculates the predicted values for each observation given the observed values and current feature weights
@@ -64,9 +66,9 @@ class RegressionCost(CostFunction):
             x: the feature array
             theta: the current feature weights
         """
-        raise NotImplementedError('all subclasses of RegressionCost must implement get_values')
 
 
+    @abstractmethod
     def _get_costs(self, predicted, actual):
         """
             calculates the costs for each prediction
@@ -74,7 +76,6 @@ class RegressionCost(CostFunction):
             predicted: an array of predicted output values
             actual: an array of actual observed output values
         """
-        raise NotImplementedError('all subclasses of RegressionCost must implement get_costs')
 
 
 class LinearRegression(RegressionCost):
