@@ -1,13 +1,11 @@
 #!/usr/bin/python
 
 import numpy as np
-import pylab as pl
 import sys
 import unittest
 
 sys.path.append('..')
 import classifier as cl
-import cost_functions as cost
 import normalize
 
 x1 = np.array([
@@ -44,7 +42,7 @@ target_theta1_logistic = np.array([[-0.30492, -0.08170, -0.02009, 0.19150]]).T
 
 test_vals1 = np.array([[-7, 3, 1], [0, 9, -4]])
 target_predictions1 = np.array([[2.09205], [5.54069]])
-target_predictions1_logistic = np.array([[0.59826], [0.22240]])
+target_predictions1_logistic = np.array([[1], [0]])
 
 PRECISION = 0.0001
 
@@ -70,16 +68,14 @@ class LinearRegressionTest(unittest.TestCase):
         self.assertTrue(np.max(np.abs(c.theta - target_theta1)) < PRECISION)
         self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 
-
     def test_2(self):
         """
             normal equation, with normalization
         """
-        c = cl.LinearClassifier(cl.NormalEquation(), normalizer = normalize.StandardNormalizer())
+        c = cl.LinearClassifier(cl.NormalEquation(), normalizer=normalize.StandardNormalizer())
         c.train(x1, y1)
 
         self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
-
 
     def test_3(self):
         """
@@ -92,17 +88,14 @@ class LinearRegressionTest(unittest.TestCase):
         self.assertTrue(np.max(np.abs(c.theta - target_theta1)) < PRECISION)
         self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 
-
     def test_4(self):
         """
             gradient descent, with normalization, no regularization
         """
 
         c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000, min_change=1e-10),
-            normalizer = normalize.StandardNormalizer())
+            normalizer=normalize.StandardNormalizer())
         c.train(x1, y1)
-        pl.plot(range(len(c.generator.cost_history)), c.generator.cost_history)
-        pl.show()
 
         self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1)) < PRECISION)
 

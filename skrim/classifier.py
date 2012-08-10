@@ -104,7 +104,8 @@ class LogisticClassifier(LinearClassifier):
         self.threshold = threshold
 
     def _predict_impl(self, x):
-        return 1 if sigmoid_curry(super(LogisticClassifier, self)._predict_impl(x)) > self.threshold else 0
+        return np.vectorize(lambda x: 1 if x >= self.threshold else 0)\
+            (sigmoid_curry(super(LogisticClassifier, self)._predict_impl(x)))
 
 
 
