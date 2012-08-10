@@ -1,11 +1,10 @@
 from abc import abstractmethod
 import numpy as np
-from math import log
 import skrimutils as util
 
 
 class CostFunction(object):
-    
+
     @abstractmethod
     def calculate(self, x, y, theta):
         """
@@ -25,7 +24,6 @@ class RegressionCost(CostFunction):
                 but for obvious reasons can't be named that.  If set to 0, regularization won't be used.
         """
         self.regular_coeff = float(regular_coeff)
-
 
     def calculate(self, x, y, theta):
         """
@@ -57,7 +55,6 @@ class RegressionCost(CostFunction):
         gradients /= m
         return cost, gradients
 
-
     @abstractmethod
     def _get_values(self, x, theta):
         """
@@ -66,7 +63,6 @@ class RegressionCost(CostFunction):
             x: the feature array
             theta: the current feature weights
         """
-
 
     @abstractmethod
     def _get_costs(self, predicted, actual):
@@ -79,7 +75,7 @@ class RegressionCost(CostFunction):
 
 
 class LinearRegression(RegressionCost):
-    
+
     def _get_values(self, x, theta):
         return np.dot(x, theta)
 
@@ -88,7 +84,7 @@ class LinearRegression(RegressionCost):
 
 
 class LogisticRegression(RegressionCost):
-    
+
     def _get_values(self, x, theta):
         return util.sigmoid_curry(np.dot(x, theta))
 
@@ -99,7 +95,7 @@ class LogisticRegression(RegressionCost):
 class NeuralNetCost(CostFunction):
 
     # TODO: refactor to work with an arbitrary number of levels
-    def __init__(self, n_input, n_hidden, n_labels, regular_coeff = 0):
+    def __init__(self, n_input, n_hidden, n_labels, regular_coeff=0):
         """
             n_input: the number of input features
             n_hidden: the number of nodes in the (first) hidden layer of the neural net
@@ -111,11 +107,10 @@ class NeuralNetCost(CostFunction):
         self.n_labels = n_labels
         self.regular_coeff = float(regular_coeff)
 
-
     def calculate(self, x, y, theta):
 
-        theta_1 = theta[0 : self.n_hidden * (self.n_input + 1)].reshape([self.n_hidden, self.n_input + 1])
-        theta_2 = theta[self.n_hidden * (self.n_input + 1) : theta.size].reshape([self.n_labels, self.n_hidden + 1])
+        theta_1 = theta[0: self.n_hidden * (self.n_input + 1)].reshape([self.n_hidden, self.n_input + 1])
+        theta_2 = theta[self.n_hidden * (self.n_input + 1): theta.size].reshape([self.n_labels, self.n_hidden + 1])
 
         m = x.shape[0]
         x = util.pad_ones(x)
@@ -128,20 +123,20 @@ class NeuralNetCost(CostFunction):
         a3 = util.sigmoid_curry(np.dot(a2_input, theta_2.T))
         actual = np.zeros(a3.shape)
         for i in xrange(actual.shape[1]):
-            actual[:,i] = (y == i).reshape(10)
+            actual[:, i] = (y == i).reshape(10)
         cost = -sum(sum(actual * np.log(a3) + (1 - actual) * np.log(1 - a3)))
 
         d3 = a3 - actual
-        d2 = np.dot(d3, theta_2[:,1:]) * util.sigmoid_gradient_curry(z2)
+        d2 = np.dot(d3, theta_2[:, 1:]) * util.sigmoid_gradient_curry(z2)
 
         theta_1_grad = np.dot(d2.T, x)
         theta_2_grad = np.dot(d3.T, util.pad_ones(a2))
 
         # adjust for regularization
         if self.regular_coeff:
-            cost += (self.regular_coeff / 2) * (sum(theta_1[:,1:] ** 2) + sum(theta_2[:,1:] ** 2))
-            theta_1_grad[:,1:] += self.regular_coeff * theta_1[:,1:]
-            theta_2_grad[:,1:] += self.regular_coeff * theta_2[:,1:]
+            cost += (self.regular_coeff / 2) * (sum(theta_1[:, 1:] ** 2) + sum(theta_2[:, 1:] ** 2))
+            theta_1_grad[:, 1:] += self.regular_coeff * theta_1[:, 1:]
+            theta_2_grad[:, 1:] += self.regular_coeff * theta_2[:, 1:]
 
         cost /= m
         theta_1_grad /= m

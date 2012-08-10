@@ -12,7 +12,7 @@ from skrimutils import pad_ones, sigmoid_curry
 
 class Classifier(object):
 
-    def __init__(self, generator, normalizer = None):
+    def __init__(self, generator, normalizer=None):
         """
             generator: an instance of a subclass of ThetaGenerator that will calculate theta
             normalize: an instance of a subclass of Normalizer that will be applied (optional)
@@ -24,16 +24,18 @@ class Classifier(object):
         self.cost_function = None
         self.reset()
 
-
     def train(self, x, y):
         """
             x, y: features and results of training data
+            
             there is no return value but this method must be called before the classifier can make any predictions
         """
         if self.x.size and x.shape[1] != self.x.shape[1]:
-            raise ValueError('all training inputs must have the same number of features')
+            raise ValueError(
+                'all training inputs must have the same number of features')
         if y.shape[1] != 1:
-            # If y is provided as a row instead of a column, just transpose it into a column
+            # If y is provided as a row instead of a column,
+            # just transpose it into a column
             if y.shape[0] == 1:
                 y = y.T
             else:
@@ -51,7 +53,6 @@ class Classifier(object):
             self.normalizer.normalize(self.x) if self.normalizer else self.x, self.y)
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
-
     def predict(self, x):
         """
             x: features of testing data
@@ -62,17 +63,15 @@ class Classifier(object):
 
         if self.normalizer:
             x = self.normalizer.normalize(x)
-        x = pad_ones(x)    
+        x = pad_ones(x)
 
         return self._predict_impl(x)
-
 
     @abstractmethod
     def _predict_impl(self, x):
         """
             performs the prediction logic on the test input and returns a matrix with a single prediction in each row
         """
-
 
     def reset(self):
         self.x = np.array([])
@@ -84,9 +83,9 @@ class Classifier(object):
 
 class LinearClassifier(Classifier):
 
-    def __init__(self, generator, normalizer = None, regular_coeff = 0):
+    def __init__(self, generator, normalizer=None, regular_coeff=0):
         super(LinearClassifier, self).__init__(generator, normalizer)
-        self.cost_function = cost.LinearRegression(regular_coeff = regular_coeff)
+        self.cost_function = cost.LinearRegression(regular_coeff=regular_coeff)
 
     def _predict_impl(self, x):
         n = x.shape[1]
@@ -99,12 +98,13 @@ class LinearClassifier(Classifier):
 
 class LogisticClassifier(LinearClassifier):
 
-    def __init__(self, generator, normalizer = None, regular_coeff = 0):
+    def __init__(self, generator, normalizer=None, regular_coeff=0, threshold=0.5):
         super(LogisticClassifier, self).__init__(generator, normalizer)
-        self.cost_function = cost.LogisticRegression(regular_coeff = regular_coeff)
+        self.cost_function = cost.LogisticRegression(regular_coeff=regular_coeff)
+        self.threshold = threshold
 
     def _predict_impl(self, x):
-        return sigmoid_curry(super(LogisticClassifier, self)._predict_impl(x))
+        return 1 if sigmoid_curry(super(LogisticClassifier, self)._predict_impl(x)) > self.threshold else 0
 
 
 
@@ -113,34 +113,38 @@ class ThetaGenerator(object):
     @abstractmethod
     def calculate(self, cost_function, x, y):
         """
-            cost_function: an instance of a subclass of CostFunction that will be used
-                to evaluate the cost of theta after each step.  It will be called as:
+            cost_function: an instance of a subclass of CostFunction that will
+                be used to evaluate the cost of theta after each step.
+                It will be called as:
                 cost_function.calculate(x, y, theta)
-                and should return a tuple whose first value is the cost
-                    and whose second value is an array of gradients for each feature.
-            x: feature array (this should NOT already include leading 1s for x_0)
+                and should return a tuple whose first value is the cost and
+                whose second value is an array of gradients for each feature.
+            x: feature array
+                (this should NOT already include leading 1s for x_0)
             y: classification vector
 
             returns the resulting theta vector
         """
 
 
-
 class GradientDescent(ThetaGenerator):
 
     """
-        cost_history: a list of the computed cost after each step of gradient descent
+        cost_history: a list of the computed cost
+            after each step of gradient descent
     """
 
-    def __init__(self, alpha, max_iter, min_change = 0):
+    def __init__(self, alpha, max_iter, min_change=0):
         """
             alpha: gradient descent step size
             max_iter: maximum number of iterations to perform
-            min_change: if this is specified, descent will stop whenever the cost decrease is below this value
+            min_change: if this is specified, descent will stop
+                whenever the cost decrease is below this value
         """
 
         if alpha <= 0 or max_iter <= 0:
-            raise ValueError('you must provide positive values for alpha and max_iter')
+            raise ValueError(
+                'you must provide positive values for alpha and max_iter')
 
         if min_change < 0:
             raise ValueError('negative values are invalid for min_change')
@@ -149,9 +153,8 @@ class GradientDescent(ThetaGenerator):
         self.max_iter = max_iter
         self.min_change = min_change
 
-
     def calculate(self, cost_function, x, y):
-        
+
         m = x.shape[0]
         x = pad_ones(x)
         m, n = x.shape
@@ -163,7 +166,7 @@ class GradientDescent(ThetaGenerator):
             self.cost_history.append(cost)
             if cost == 0.0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
                 break
-            
+
             theta = theta - self.alpha * gradients
 
         return theta
