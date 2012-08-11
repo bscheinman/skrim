@@ -39,8 +39,8 @@ class StandardNormalizer(Normalizer):
         self.reset()
 
     def set_basis(self, x):
-        self.means = np.mean(x, 0)
-        self.stds = np.std(x, 0)
+        self.means = np.vectorize(float)(np.mean(x, 0))
+        self.stds = np.vectorize(float)(np.std(x, 0))
 
     def normalize(self, x):
         n = x.shape[1]

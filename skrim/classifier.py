@@ -161,12 +161,14 @@ class OneVsAllClassifier(Classifier):
         # predictions has a row for each test record, and a column for each possible y class
         # predictions[i, j] represents the probability that the classifier for class j
         # assigned to x_i
-        predictions = np.zeros((x.shape[0], 1))
+        predictions = np.array([])
         classes = []
         for y_class, y_classifier in self.classifiers.iteritems():
-            predictions = np.append(predictions, y_classifier.predict(x), 1)
+            y_prediction = y_classifier.predict(x)
+            predictions = np.append(predictions, y_prediction, 1) if predictions.size else y_prediction
+            #predictions = np.append(predictions, y_classifier.predict(x), 1)
             classes.append(y_class)
-        return np.vectorize(lambda x: classes[x - 1])(predictions.argmax(1).reshape((x.shape[0], 1)))
+        return np.vectorize(lambda x: classes[x])(predictions.argmax(1).reshape((x.shape[0], 1)))
 
     def reset(self):
         self.classifiers.clear()
