@@ -13,27 +13,46 @@ from skrimutils import pad_ones, sigmoid_curry
 
 class Classifier(object):
 
-    def __init__(self, generator, normalizer=None):
-        """
-            generator: an instance of a subclass of ThetaGenerator that will calculate theta
-            normalize: an instance of a subclass of Normalizer that will be applied (optional)
-
-            many subclasses of Classifier will want to define self.cost_function
-        """
-        self.generator = generator
-        self.normalizer = normalizer
-        self.cost_function = None
-        self.reset()
-
+    @abstractmethod
     def train(self, x, y):
         """
             x, y: features and results of training data
 
             there is no return value but this method must be called before the classifier can make any predictions
         """
+
+    @abstractmethod
+    def predict(self, x):
+        """
+            x: features of testing data
+            returns a vector of predicted values (or classes) for each row of feature data
+        """
+
+    @abstractmethod
+    def reset(self):
+        pass
+
+
+class LinearClassifier(Classifier):
+    """
+        This class performs linear regression
+    """
+
+    def __init__(self, generator, normalizer=None, regular_coeff=0):
+        """
+            generator: an instance of a subclass of ThetaGenerator that will calculate theta
+            normalize: an instance of a subclass of Normalizer that will be applied (optional)
+            regular_coeff: the value of lambda to use for the cost function.  This can be useful
+                to avoid overfitting the training set
+        """
+        self.generator = generator
+        self.normalizer = normalizer
+        self.cost_function = cost.LinearRegression(regular_coeff=regular_coeff)
+        self.reset()
+
+    def train(self, x, y):
         if self.x.size and x.shape[1] != self.x.shape[1]:
-            raise ValueError(
-                'all training inputs must have the same number of features')
+            raise ValueError('all training inputs must have the same number of features')
         if y.shape[1] != 1:
             # If y is provided as a row instead of a column,
             # just transpose it into a column
@@ -55,10 +74,6 @@ class Classifier(object):
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
     def predict(self, x):
-        """
-            x: features of testing data
-            returns a vector of predicted values (or classes) for each row of feature data
-        """
         if not self.x.size:
             raise Exception('this classifier has not been trained yet')
 
@@ -66,13 +81,12 @@ class Classifier(object):
             x = self.normalizer.normalize(x)
         x = pad_ones(x)
 
-        return self._predict_impl(x)
+        n = x.shape[1]
+        if n != self.theta.shape[0]:
+            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
+                % (str(self.x.shape[1]), str(n)))
 
-    @abstractmethod
-    def _predict_impl(self, x):
-        """
-            performs the prediction logic on the test input and returns a matrix with a single prediction in each row
-        """
+        return x.dot(self.theta)
 
     def reset(self):
         self.x = np.array([])
@@ -80,21 +94,6 @@ class Classifier(object):
         self.theta = None
         if self.normalizer:
             self.normalizer.reset()
-
-
-class LinearClassifier(Classifier):
-
-    def __init__(self, generator, normalizer=None, regular_coeff=0):
-        super(LinearClassifier, self).__init__(generator, normalizer)
-        self.cost_function = cost.LinearRegression(regular_coeff=regular_coeff)
-
-    def _predict_impl(self, x):
-        n = x.shape[1]
-        if n != self.theta.shape[0]:
-            raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
-                % (str(self.x.shape[1]), str(n)))
-
-        return np.dot(x, self.theta)
 
 
 class LogisticValueClassifier(LinearClassifier):
@@ -111,8 +110,8 @@ class LogisticValueClassifier(LinearClassifier):
             raise ValueError('all training classes must be 0 or 1')
         super(LogisticValueClassifier, self).train(x, y)
 
-    def _predict_impl(self, x):
-        return sigmoid_curry(super(LogisticValueClassifier, self)._predict_impl(x))
+    def predict(self, x):
+        return sigmoid_curry(super(LogisticValueClassifier, self).predict(x))
 
 
 class LogisticClassifier(LogisticValueClassifier):
@@ -125,9 +124,9 @@ class LogisticClassifier(LogisticValueClassifier):
         super(LogisticClassifier, self).__init__(generator, normalizer, regular_coeff)
         self.threshold = threshold
 
-    def _predict_impl(self, x):
+    def predict(self, x):
         return np.vectorize(lambda x: 1 if x >= self.threshold else 0)(
-            super(LogisticClassifier, self)._predict_impl(x))
+            super(LogisticClassifier, self).predict(x))
 
 
 class OneVsAllClassifier(Classifier):
@@ -163,13 +162,10 @@ class OneVsAllClassifier(Classifier):
         # predictions[i, j] represents the probability that the classifier for class j
         # assigned to x_i
         predictions = np.zeros((x.shape[0], 1))
-        i = 0
         classes = []
         for y_class, y_classifier in self.classifiers.iteritems():
-            #predictions[:, i] = y_classifier.predict(x)
             predictions = np.append(predictions, y_classifier.predict(x), 1)
             classes.append(y_class)
-            i += 1
         return np.vectorize(lambda x: classes[x - 1])(predictions.argmax(1).reshape((x.shape[0], 1)))
 
     def reset(self):
