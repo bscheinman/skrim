@@ -36,13 +36,15 @@ x1_normal = np.array([
 
 y1 = np.array([[-3, 4, -5, -1, 0, 7, 3, -5, 4, 4]]).T
 y1_logistic = np.array([[1, 0, 0, 0, 1, 0, 1, 1, 0, 1]]).T
+y1_multiclass = np.array([[1, 2, 4, 2, 1, 2, 3, 4, 4, 3]]).T
 
 target_theta1 = np.array([[1.17525, 0.05209, 0.45196, -0.07445]]).T
 target_theta1_logistic = np.array([[-0.30492, -0.08170, -0.02009, 0.19150]]).T
 
 test_vals1 = np.array([[-7, 3, 1], [0, 9, -4]])
 target_predictions1 = np.array([[2.09205], [5.54069]])
-target_predictions1_logistic = np.array([[1], [0]])
+target_predictions1_logistic = np.array([[0.59826], [0.22240]])
+target_multiclass1 = np.array([[2], [2]])
 
 PRECISION = 0.0001
 
@@ -106,11 +108,21 @@ class LogisticRegressionTest(unittest.TestCase):
         """
             gradient descent, no normalization
         """
-        c = cl.LogisticClassifier(cl.GradientDescent(alpha=0.1, max_iter=1000))
+        c = cl.LogisticValueClassifier(cl.GradientDescent(alpha=0.1, max_iter=1000))
         c.train(x1, y1_logistic)
 
         self.assertTrue(np.max(np.abs(c.theta - target_theta1_logistic)) < PRECISION)
         self.assertTrue(np.max(np.abs(c.predict(test_vals1) - target_predictions1_logistic)) < PRECISION)
+
+
+class OneVsAllTest(unittest.TestCase):
+
+    def test_1(self):
+        c = cl.OneVsAllClassifier(lambda:\
+            cl.LogisticValueClassifier(cl.GradientDescent(1, 1000), normalize.RangeNormalizer()))
+        c.train(x1, y1_multiclass)
+
+        self.assertTrue((c.predict(test_vals1) == target_multiclass1).all())
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ from abc import abstractmethod
 import numpy as np
 
 import cost_functions as cost
+import normalize
 from skrimutils import pad_ones, sigmoid_curry
 
 
@@ -27,7 +28,7 @@ class Classifier(object):
     def train(self, x, y):
         """
             x, y: features and results of training data
-            
+
             there is no return value but this method must be called before the classifier can make any predictions
         """
         if self.x.size and x.shape[1] != self.x.shape[1]:
@@ -96,17 +97,83 @@ class LinearClassifier(Classifier):
         return np.dot(x, self.theta)
 
 
-class LogisticClassifier(LinearClassifier):
+class LogisticValueClassifier(LinearClassifier):
+    """
+        This class performs logistic regression and will return P(class=1) as its predictions
+    """
+
+    def __init__(self, generator, normalizer=None, regular_coeff=0):
+        super(LogisticValueClassifier, self).__init__(generator, normalizer)
+        self.cost_function = cost.LogisticRegression(regular_coeff=regular_coeff)
+
+    def train(self, x, y):
+        if not np.vectorize(lambda x: x in (0, 1))(y).all():
+            raise ValueError('all training classes must be 0 or 1')
+        super(LogisticValueClassifier, self).train(x, y)
+
+    def _predict_impl(self, x):
+        return sigmoid_curry(super(LogisticValueClassifier, self)._predict_impl(x))
+
+
+class LogisticClassifier(LogisticValueClassifier):
+    """
+        This class is the same as LogisticValueClassifier except that it returns 0 or 1
+        depending on whether the predicted probability is above a certain threshold
+    """
 
     def __init__(self, generator, normalizer=None, regular_coeff=0, threshold=0.5):
-        super(LogisticClassifier, self).__init__(generator, normalizer)
-        self.cost_function = cost.LogisticRegression(regular_coeff=regular_coeff)
+        super(LogisticClassifier, self).__init__(generator, normalizer, regular_coeff)
         self.threshold = threshold
 
     def _predict_impl(self, x):
-        return np.vectorize(lambda x: 1 if x >= self.threshold else 0)\
-            (sigmoid_curry(super(LogisticClassifier, self)._predict_impl(x)))
+        return np.vectorize(lambda x: 1 if x >= self.threshold else 0)(
+            super(LogisticClassifier, self)._predict_impl(x))
 
+
+class OneVsAllClassifier(Classifier):
+    """
+        This class uses other classifiers to perform one-vs-all classification.
+        It will create an instance of the provided classifier for each unique
+        class in the training set provided and train each one using that training
+        data.  For each testing record, it will predict the class whose classifier
+        provides the highest prediction value.
+    """
+
+    def __init__(self, classifier_generator=None):
+        """
+            classifier_generator: a function that takes no arguments and returns an instance
+                of another classifier to use for a single observation class.  For example, the
+                default value is:
+                    lambda: LogisticValueClassifier(GradientDescent(1, 1000), StandardNormalizer())
+        """
+        self.classifier_generator = classifier_generator or\
+            (lambda: LogisticValueClassifier(GradientDescent(1, 1000), normalize.StandardNormalizer()))
+        self.classifiers = {}
+
+    def train(self, x, y):
+        self.reset()
+        for y_class in np.unique(y):
+            y_classifier = self.classifier_generator()
+            y_train = np.vectorize(lambda x: 1 if x == y_class else 0)(y)
+            y_classifier.train(x, y_train)
+            self.classifiers[y_class] = y_classifier
+
+    def predict(self, x):
+        # predictions has a row for each test record, and a column for each possible y class
+        # predictions[i, j] represents the probability that the classifier for class j
+        # assigned to x_i
+        predictions = np.zeros((x.shape[0], 1))
+        i = 0
+        classes = []
+        for y_class, y_classifier in self.classifiers.iteritems():
+            #predictions[:, i] = y_classifier.predict(x)
+            predictions = np.append(predictions, y_classifier.predict(x), 1)
+            classes.append(y_class)
+            i += 1
+        return np.vectorize(lambda x: classes[x - 1])(predictions.argmax(1).reshape((x.shape[0], 1)))
+
+    def reset(self):
+        self.classifiers.clear()
 
 
 class ThetaGenerator(object):
