@@ -6,7 +6,7 @@
 from abc import abstractmethod
 import numpy as np
 
-import cost_functions as cost
+import cost_functions
 import normalize
 from skrimutils import pad_ones, sigmoid_curry
 
@@ -38,7 +38,7 @@ class LinearClassifier(Classifier):
         This class performs linear regression
     """
 
-    def __init__(self, generator, normalizer=None, regular_coeff=0):
+    def __init__(self, generator, normalizer=None):
         """
             generator: an instance of a subclass of ThetaGenerator that will calculate theta
             normalize: an instance of a subclass of Normalizer that will be applied (optional)
@@ -47,7 +47,6 @@ class LinearClassifier(Classifier):
         """
         self.generator = generator
         self.normalizer = normalizer
-        self.cost_function = cost.LinearRegression(regular_coeff=regular_coeff)
         self.reset()
 
     def train(self, x, y):
@@ -69,7 +68,7 @@ class LinearClassifier(Classifier):
         if self.normalizer:
             self.normalizer.set_basis(self.x)
 
-        self.theta = self.generator.calculate(self.cost_function,
+        self.theta = self.generator.calculate(
             self.normalizer.normalize(self.x) if self.normalizer else self.x, self.y)
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
@@ -101,9 +100,8 @@ class LogisticValueClassifier(LinearClassifier):
         This class performs logistic regression and will return P(class=1) as its predictions
     """
 
-    def __init__(self, generator, normalizer=None, regular_coeff=0):
+    def __init__(self, generator, normalizer=None):
         super(LogisticValueClassifier, self).__init__(generator, normalizer)
-        self.cost_function = cost.LogisticRegression(regular_coeff=regular_coeff)
 
     def train(self, x, y):
         if not np.vectorize(lambda x: x in (0, 1))(y).all():
@@ -120,8 +118,8 @@ class LogisticClassifier(LogisticValueClassifier):
         depending on whether the predicted probability is above a certain threshold
     """
 
-    def __init__(self, generator, normalizer=None, regular_coeff=0, threshold=0.5):
-        super(LogisticClassifier, self).__init__(generator, normalizer, regular_coeff)
+    def __init__(self, generator, normalizer=None, threshold=0.5):
+        super(LogisticClassifier, self).__init__(generator, normalizer)
         self.threshold = threshold
 
     def predict(self, x):
@@ -143,10 +141,12 @@ class OneVsAllClassifier(Classifier):
             classifier_generator: a function that takes no arguments and returns an instance
                 of another classifier to use for a single observation class.  For example, the
                 default value is:
-                    lambda: LogisticValueClassifier(GradientDescent(1, 1000), StandardNormalizer())
+                    lambda: LogisticValueClassifier(GradientDescent(
+                        LogisticRegression(), 1, 1000), StandardNormalizer())
         """
         self.classifier_generator = classifier_generator or\
-            (lambda: LogisticValueClassifier(GradientDescent(1, 1000), normalize.StandardNormalizer()))
+            (lambda: LogisticValueClassifier(GradientDescent(
+                cost_functions.LogisticRegression(), 1, 1000), normalize.StandardNormalizer()))
         self.classifiers = {}
 
     def train(self, x, y):
@@ -166,7 +166,6 @@ class OneVsAllClassifier(Classifier):
         for y_class, y_classifier in self.classifiers.iteritems():
             y_prediction = y_classifier.predict(x)
             predictions = np.append(predictions, y_prediction, 1) if predictions.size else y_prediction
-            #predictions = np.append(predictions, y_classifier.predict(x), 1)
             classes.append(y_class)
         return np.vectorize(lambda x: classes[x])(predictions.argmax(1).reshape((x.shape[0], 1)))
 
@@ -177,14 +176,8 @@ class OneVsAllClassifier(Classifier):
 class ThetaGenerator(object):
 
     @abstractmethod
-    def calculate(self, cost_function, x, y):
+    def calculate(self, x, y):
         """
-            cost_function: an instance of a subclass of CostFunction that will
-                be used to evaluate the cost of theta after each step.
-                It will be called as:
-                cost_function.calculate(x, y, theta)
-                and should return a tuple whose first value is the cost and
-                whose second value is an array of gradients for each feature.
             x: feature array
                 (this should NOT already include leading 1s for x_0)
             y: classification vector
@@ -200,12 +193,18 @@ class GradientDescent(ThetaGenerator):
             after each step of gradient descent
     """
 
-    def __init__(self, alpha, max_iter, min_change=0):
+    def __init__(self, cost_function, alpha, max_iter, min_change=0):
         """
             alpha: gradient descent step size
             max_iter: maximum number of iterations to perform
             min_change: if this is specified, descent will stop
                 whenever the cost decrease is below this value
+            cost_function: an instance of a subclass of CostFunction that will
+                be used to evaluate the cost of theta after each step.
+                It will be called as:
+                cost_function.calculate(x, y, theta)
+                and should return a tuple whose first value is the cost and
+                whose second value is an array of gradients for each feature.
         """
 
         if alpha <= 0 or max_iter <= 0:
@@ -218,8 +217,9 @@ class GradientDescent(ThetaGenerator):
         self.alpha = alpha
         self.max_iter = max_iter
         self.min_change = min_change
+        self.cost_function = cost_function
 
-    def calculate(self, cost_function, x, y):
+    def calculate(self, x, y):
 
         m = x.shape[0]
         x = pad_ones(x)
@@ -228,7 +228,7 @@ class GradientDescent(ThetaGenerator):
         self.cost_history = []
         theta = np.zeros([n, 1])
         for i in xrange(self.max_iter):
-            cost, gradients = cost_function.calculate(x, y, theta)
+            cost, gradients = self.cost_function.calculate(x, y, theta)
             self.cost_history.append(cost)
             if cost == 0.0 or self.min_change and len(self.cost_history) > 1 and self.cost_history[-2] - cost <= self.min_change:
                 break
@@ -243,8 +243,7 @@ class NormalEquation(ThetaGenerator):
         uses the normal equation to solve for the exact value of theta.  this is only suitable for smaller data sets
     """
 
-    # cost_function isn't used in this class and will be ignored
-    def calculate(self, cost_function, x, y):
+    def calculate(self, x, y):
         x_calc = pad_ones(x)
         x_calc_t = x_calc.T
         return np.dot(np.dot(np.linalg.inv((np.dot(x_calc_t, x_calc))), x_calc_t), y)

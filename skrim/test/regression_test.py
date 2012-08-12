@@ -6,6 +6,7 @@ import unittest
 
 sys.path.append('..')
 import classifier as cl
+import cost_functions as cf
 import normalize
 
 x1 = np.array([
@@ -84,7 +85,8 @@ class LinearRegressionTest(unittest.TestCase):
             gradient descent, no normalization, no regularization
         """
 
-        c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000, min_change=1e-10))
+        c = cl.LinearClassifier(cl.GradientDescent(
+            cf.LinearRegression(), alpha=0.05, max_iter=1000, min_change=1e-10))
         c.train(x1, y1)
 
         self.assertTrue(np.max(np.abs(c.theta - target_theta1)) < PRECISION)
@@ -95,7 +97,8 @@ class LinearRegressionTest(unittest.TestCase):
             gradient descent, with normalization, no regularization
         """
 
-        c = cl.LinearClassifier(cl.GradientDescent(alpha=0.05, max_iter=1000, min_change=1e-10),
+        c = cl.LinearClassifier(cl.GradientDescent(
+                cf.LinearRegression(), alpha=0.05, max_iter=1000, min_change=1e-10),
             normalizer=normalize.StandardNormalizer())
         c.train(x1, y1)
 
@@ -108,7 +111,8 @@ class LogisticRegressionTest(unittest.TestCase):
         """
             gradient descent, no normalization
         """
-        c = cl.LogisticValueClassifier(cl.GradientDescent(alpha=0.1, max_iter=1000))
+        c = cl.LogisticValueClassifier(cl.GradientDescent(
+            cf.LogisticRegression(), alpha=0.1, max_iter=1000))
         c.train(x1, y1_logistic)
 
         self.assertTrue(np.max(np.abs(c.theta - target_theta1_logistic)) < PRECISION)
@@ -119,7 +123,8 @@ class OneVsAllTest(unittest.TestCase):
 
     def test_1(self):
         c = cl.OneVsAllClassifier(lambda:\
-            cl.LogisticValueClassifier(cl.GradientDescent(1, 1000), normalize.RangeNormalizer()))
+            cl.LogisticValueClassifier(cl.GradientDescent(
+                cf.LogisticRegression(), 1, 1000), normalize.RangeNormalizer()))
         c.train(x1, y1_multiclass)
 
         self.assertTrue((c.predict(test_vals1) == target_multiclass1).all())
