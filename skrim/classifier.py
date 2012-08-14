@@ -51,46 +51,44 @@ class LinearClassifier(Classifier):
 
     def train(self, x, y):
 
-        if self.x.size and x.shape[1] + 1 != self.x.shape[1]:
-            raise ValueError('all training inputs must have the same number of features')
+        if len(y.shape) == 1:
+            y = y.reshape((y.size, 1))
+        elif len(y.shape) == 2:
+            if y.shape[1] != 1:
+                # If y is provided as a row instead of a column,
+                # just transpose it into a column
+                if y.shape[0] == 1:
+                    y = y.T
+                else:
+                    raise ValueError('all training results must have one column')
+        else:
+            raise ValueError('y must be a 1- or 2-dimensional matrix')
 
-        if y.shape[1] != 1:
-            # If y is provided as a row instead of a column,
-            # just transpose it into a column
-            if y.shape[0] == 1:
-                y = y.T
-            else:
-                raise ValueError('all training results must have one column')
         if x.shape[0] != y.shape[0]:
             raise ValueError('you must provide the same number of input features as input results')
 
-        self.x = np.append(self.x, x, 0) if self.x.size else x
-        self.y = np.append(self.y, y, 0) if self.y.size else y
-
         if self.normalizer:
-            self.normalizer.set_basis(self.x)
+            self.normalizer.set_basis(x)
 
         self.theta = self.generator.calculate(
-            pad_ones(self.normalizer.normalize(self.x) if self.normalizer else self.x), self.y)
+            pad_ones(self.normalizer.normalize(x) if self.normalizer else x), y)
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
     def predict(self, x):
-        if not self.x.size:
+        if not self.theta.size:
             raise Exception('this classifier has not been trained yet')
 
         if self.normalizer:
             x = self.normalizer.normalize(x)
 
         n = x.shape[1]
-        if n != self.x.shape[1]:
+        if n != self.theta.shape[0] - 1:
             raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
-                % (str(self.x.shape[1]), str(n)))
+                % (str(self.theta.shape[1] - 1), str(n)))
 
         return pad_ones(x).dot(self.theta)
 
     def reset(self):
-        self.x = np.array([[]])
-        self.y = np.array([[]])
         self.theta = None
         if self.normalizer:
             self.normalizer.reset()
@@ -185,18 +183,25 @@ class SupportVectorMachine(LogisticClassifier):
     """
 
     def __init__(self, kernel, generator, normalizer=normalize.RangeNormalizer()):
-        super(SupportVectorMachine, self).__init__(generator, normalizer)
+        # this is pretty hacky, but we don't want to pass a normalizer to the
+        # base class because we don't want to re-normalize after calculating similarities
+        super(SupportVectorMachine, self).__init__(generator, None)
+        self.svm_normalizer = normalizer
         self.kernel = kernel
 
     def train(self, x, y):
 
         self.reset()
+        if self.svm_normalizer:
+            self.svm_normalizer.set_basis(x)
+            self.landmarks = self.svm_normalizer.normalize(x)
         # we have to set landmarks first because we need it in order to calculate transformed features
-        self.landmarks = x
-        super(SupportVectorMachine, self).train(self.to_distances(x), y)
+        super(SupportVectorMachine, self).train(self.to_distances(self.landmarks), y)
 
     def predict(self, x):
-        return super(SupportVectorMachine, self).predict(self.to_distances(x))
+        if self.svm_normalizer:
+            x_transform = self.svm_normalizer.normalize(x)
+        return super(SupportVectorMachine, self).predict(self.to_distances(x_transform))
 
     def to_distances(self, x):
         """

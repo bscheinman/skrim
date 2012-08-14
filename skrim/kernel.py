@@ -11,7 +11,7 @@ def gaussian_kernel_impl(x1, x2, sigma):
     # so it's quicker to just do neither
     dist = np.sum((x1 - x2) ** 2)
 
-    return -exp(dist / (2 * sigma ** 2))
+    return exp(-dist / (2 * sigma ** 2))
 
 
 gaussian_kernel = lambda sigma: (lambda x1, x2: gaussian_kernel_impl(x1, x2, sigma))

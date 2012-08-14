@@ -77,7 +77,7 @@ class RangeNormalizer(Normalizer):
         if n != self.mins.shape[0]:
             raise ValueError(
                 'this normalizer is initialized to take input with %s features but you provided input with %s features'
-                % (str(self.mins.shape[0])), x.shape[1])
+                % (str(self.mins.shape[0]), str(x.shape[1])))
 
         return (x - self.mins) / (self.maxs - self.mins)
 
