@@ -44,9 +44,13 @@ class LinearClassifier(Classifier):
             normalize: an instance of a subclass of Normalizer that will be applied (optional)
             regular_coeff: the value of lambda to use for the cost function.  This can be useful
                 to avoid overfitting the training set
+
+            subclasses that don't want to pad their input data with extra ones for an intercept term
+            should set self.pad_x to False in their constructors
         """
         self.generator = generator
         self.normalizer = normalizer
+        self.pad_x = True
         self.reset()
 
     def train(self, x, y):
@@ -70,8 +74,11 @@ class LinearClassifier(Classifier):
         if self.normalizer:
             self.normalizer.set_basis(x)
 
-        self.theta = self.generator.calculate(
-            pad_ones(self.normalizer.normalize(x) if self.normalizer else x), y)
+        x_train = self.normalizer.normalize(x) if self.normalizer else x
+        if self.pad_x:
+            x_train = pad_ones(x_train)
+
+        self.theta = self.generator.calculate(x_train, y)
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
     def predict(self, x):
@@ -82,11 +89,13 @@ class LinearClassifier(Classifier):
             x = self.normalizer.normalize(x)
 
         n = x.shape[1]
-        if n != self.theta.shape[0] - 1:
+        expected_n = self.theta.shape[0] - (1 if self.pad_x else 0)
+        if n != expected_n:
             raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
-                % (str(self.theta.shape[1] - 1), str(n)))
+                % (str(expected_n), str(n)))
 
-        return pad_ones(x).dot(self.theta)
+        x_predict = pad_ones(x) if self.pad_x else x
+        return x_predict.dot(self.theta)
 
     def reset(self):
         self.theta = None
@@ -188,6 +197,7 @@ class SupportVectorMachine(LogisticClassifier):
         super(SupportVectorMachine, self).__init__(generator, None)
         self.svm_normalizer = normalizer
         self.kernel = kernel
+        self.pad_x = False
 
     def train(self, x, y):
 

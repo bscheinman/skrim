@@ -182,7 +182,14 @@ class SupportVectorMachineCost(CostFunction):
         predicted = x.dot(theta)
         adj_predicted = y * predicted + (1 - y) * (-predicted)
         cost = self.c * sum(np.vectorize(lambda x: 0 if x >= 1 else 1 - x)(adj_predicted))
-        observation_gradients = np.vectorize(lambda x: 0 if x >= 1 else -1)(adj_predicted)
+
+        observation_gradients = np.zeros((m,))
+        for i in xrange(m):
+            # if adj_predicted[i] >= 1 then we already have no cost, so the gradient is 0
+            if adj_predicted[i] < 1:
+                # if y == 0, then increasing our prediction increases error linearly
+                # otherwise, if y == 1, then increasing our prediction decreases error
+                observation_gradients[i] = -1 if y[i] else 1
         gradients = self.c * sum(x * observation_gradients, 0).reshape((n, 1))
 
         cost += sum(theta[1:] ** 2) / 2
