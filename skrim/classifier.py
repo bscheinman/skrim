@@ -50,8 +50,10 @@ class LinearClassifier(Classifier):
         self.reset()
 
     def train(self, x, y):
-        if self.x.size and x.shape[1] != self.x.shape[1]:
+
+        if self.x.size and x.shape[1] + 1 != self.x.shape[1]:
             raise ValueError('all training inputs must have the same number of features')
+
         if y.shape[1] != 1:
             # If y is provided as a row instead of a column,
             # just transpose it into a column
@@ -69,7 +71,7 @@ class LinearClassifier(Classifier):
             self.normalizer.set_basis(self.x)
 
         self.theta = self.generator.calculate(
-            self.normalizer.normalize(self.x) if self.normalizer else self.x, self.y)
+            pad_ones(self.normalizer.normalize(self.x) if self.normalizer else self.x), self.y)
         self.theta = self.theta.reshape([self.theta.shape[0], 1])
 
     def predict(self, x):
@@ -78,18 +80,17 @@ class LinearClassifier(Classifier):
 
         if self.normalizer:
             x = self.normalizer.normalize(x)
-        x = pad_ones(x)
 
         n = x.shape[1]
-        if n != self.theta.shape[0]:
+        if n != self.x.shape[1]:
             raise ValueError('this classifier was trained using inputs with %s features but this input has %s features'
                 % (str(self.x.shape[1]), str(n)))
 
-        return x.dot(self.theta)
+        return pad_ones(x).dot(self.theta)
 
     def reset(self):
-        self.x = np.array([])
-        self.y = np.array([])
+        self.x = np.array([[]])
+        self.y = np.array([[]])
         self.theta = None
         if self.normalizer:
             self.normalizer.reset()
@@ -104,7 +105,10 @@ class LogisticValueClassifier(LinearClassifier):
         super(LogisticValueClassifier, self).__init__(generator, normalizer)
 
     def train(self, x, y):
-        if not np.vectorize(lambda x: x in (0, 1))(y).all():
+
+        if len(x.shape) != 2:
+            raise ValueError('training data must be a 2-dimensional array')
+        if not np.vectorize(lambda c: c in (0, 1))(y).all():
             raise ValueError('all training classes must be 0 or 1')
         super(LogisticValueClassifier, self).train(x, y)
 
@@ -173,6 +177,55 @@ class OneVsAllClassifier(Classifier):
         self.classifiers.clear()
 
 
+class SupportVectorMachine(LogisticClassifier):
+    """
+        This class implements a support vector machine.  It is extremely slow and should not be used
+        for any non-trivial amount of data.  If you want to use an SVM for real data, you should look
+        into an established SVM library such as LibSVM.
+    """
+
+    def __init__(self, kernel, generator, normalizer=normalize.RangeNormalizer()):
+        super(SupportVectorMachine, self).__init__(generator, normalizer)
+        self.kernel = kernel
+
+    def train(self, x, y):
+
+        self.reset()
+        # we have to set landmarks first because we need it in order to calculate transformed features
+        self.landmarks = x
+        super(SupportVectorMachine, self).train(self.to_distances(x), y)
+
+    def predict(self, x):
+        return super(SupportVectorMachine, self).predict(self.to_distances(x))
+
+    def to_distances(self, x):
+        """
+            x: a set of (original) features to convert to similarity features
+
+            return value: the converted feature values of x ready to use for
+                cost or prediction functions
+        """
+
+        if len(x.shape) != 2:
+            raise ValueError('observation data must be a 2-dimensional array')
+        m, n = x.shape
+        if n != self.landmarks.shape[1]:
+            raise ValueError('training data had %s features but you provided data with %s features'
+                % (self.landmarks.shape[1], n))
+
+        x_transform = np.zeros((m, self.landmarks.shape[0]))
+        for i in xrange(m):
+            observation = x[i]
+            for j in xrange(self.landmarks.shape[0]):
+                x_transform[i, j] = self.kernel(observation, self.landmarks[j])
+
+        return x_transform
+
+    def reset(self):
+        super(SupportVectorMachine, self).reset()
+        self.landmarks = np.array([[]])
+
+
 class ThetaGenerator(object):
 
     @abstractmethod
@@ -221,8 +274,6 @@ class GradientDescent(ThetaGenerator):
 
     def calculate(self, x, y):
 
-        m = x.shape[0]
-        x = pad_ones(x)
         m, n = x.shape
 
         self.cost_history = []
@@ -244,6 +295,6 @@ class NormalEquation(ThetaGenerator):
     """
 
     def calculate(self, x, y):
-        x_calc = pad_ones(x)
-        x_calc_t = x_calc.T
-        return np.dot(np.dot(np.linalg.inv((np.dot(x_calc_t, x_calc))), x_calc_t), y)
+        x_t = x.T
+        # theta = (X' * X)^-1 * X' * y
+        return np.dot(np.dot(np.linalg.inv((np.dot(x_t, x))), x_t), y)

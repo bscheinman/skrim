@@ -34,6 +34,9 @@ class RegressionCost(CostFunction):
             return value: a tuple whose first value is the cost and second value is a list of feature gradients
         """
 
+        if len(x.shape) != 2:
+            raise ValueError('x must be a 1- or 2-dimensional array')
+
         m, n = x.shape
         if n != theta.shape[0]:
             raise ValueError('theta must have the same size as each feature vector')
@@ -42,13 +45,11 @@ class RegressionCost(CostFunction):
 
         predicted = self._get_values(x, theta)
         cost = sum(self._get_costs(predicted, y))
-        gradients = sum(x * (predicted - y), 0).reshape([n, 1])
+        gradients = sum(x * (predicted - y), 0).reshape((n, 1))
 
         if self.regular_coeff:
             cost += (self.regular_coeff / 2) * sum(theta[1:] ** 2)
-            for i in xrange(theta.shape[0]):
-                if not i:
-                    continue
+            for i in xrange(1, theta.shape[0]):
                 gradients[i] += self.regular_coeff * theta[i][0]
 
         cost /= m
@@ -146,3 +147,48 @@ class NeuralNetCost(CostFunction):
             theta_2_grad.reshape(theta_2_grad.size, 1), 0)
 
         return cost, grad
+
+
+class SupportVectorMachineCost(CostFunction):
+    """
+        This class calculates costs and gradients for support vector machines.
+        It assumes that the provided feature values have already been transformed
+        to similarity values.
+    """
+
+    def __init__(self, c=1):
+        """
+            c: The coefficient to use for error term.
+                Note that this is effectively the reciprocal of the regularization
+                coefficient used in normal regression.  Any given value of c here
+                is logically the same as providing 1/c as the regularization
+                coefficient to a regression cost function.
+        """
+        self.c = c
+
+    def calculate(self, x, y, theta):
+
+        if len(x.shape) == 1:
+            x = x.reshape((1, x.shape[0]))
+        elif len(x.shape) != 2:
+            raise ValueError('x must be a 1- or 2-dimensional array')
+
+        m, n = x.shape
+        if n != theta.shape[0]:
+            raise ValueError('theta must have the same size as each feature vector')
+        if m != y.shape[0]:
+            raise ValueError('features and results must have the same number of observations')
+
+        predicted = x.dot(theta)
+        adj_predicted = y * predicted + (1 - y) * (-predicted)
+        cost = self.c * sum(np.vectorize(lambda x: 0 if x >= 1 else 1 - x)(adj_predicted))
+        observation_gradients = np.vectorize(lambda x: 0 if x >= 1 else -1)(adj_predicted)
+        gradients = self.c * sum(x * observation_gradients, 0).reshape((n, 1))
+
+        cost += sum(theta[1:] ** 2) / 2
+        gradients += theta
+        gradients[0] -= theta[0][0]
+
+        cost /= m
+        gradients /= m
+        return cost, gradients
