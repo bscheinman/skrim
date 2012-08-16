@@ -256,7 +256,7 @@ class KNearestNeighbors(Classifier):
         """
         self.k = k
         self.dist_fun = dist_fun or euclidean_distance
-        self.weight = weight or (lambda x: 1 / x ** 2)
+        self.weight = weight or (lambda x: 1.0 / x)
         self.reset()
 
     def train(self, x, y):
