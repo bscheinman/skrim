@@ -3,12 +3,12 @@
     Data should already be cleaned and structured before they are passed here
 """
 
-from abc import abstractmethod
 import numpy as np
+from abc import abstractmethod
 
 import cost_functions
 import normalize
-from skrimutils import pad_ones, sigmoid_curry
+from skrimutils import euclidean_distance, pad_ones, sigmoid_curry
 
 
 class Classifier(object):
@@ -239,6 +239,57 @@ class SupportVectorMachine(LogisticClassifier):
     def reset(self):
         super(SupportVectorMachine, self).reset()
         self.landmarks = np.array([[]])
+
+
+class KNearestNeighbors(Classifier):
+    """
+        Implements the k-nearest neighbors algorithm to classify items.
+        Each test observation is assigned to the class most prevalent among the k
+        closest test observations
+    """
+
+    def __init__(self, k=1, dist_fun=None, weight=None):
+        """
+            k: the number of neighbors to consider
+            dist_fun: the function to use to compute distance when determining nearest neighbors
+            weight: a function to weight the value of each neighbor's class based on their distance
+        """
+        self.k = k
+        self.dist_fun = dist_fun or euclidean_distance
+        self.weight = weight or (lambda x: 1 / x ** 2)
+        self.reset()
+
+    def train(self, x, y):
+        self.x = x
+        self.y = y
+
+    def nearest_neighbors(self, x):
+        distances = []
+        for i in xrange(self.x.shape[0]):
+            distances.append((self.dist_fun(x, self.x[i, :]), self.y[i]))
+        return sorted(distances, key=lambda val: val[0])[:self.k]
+
+    def predict(self, x):
+        predictions = np.zeros((x.shape[0], 1))
+        for i_obs in xrange(x.shape[0]):
+            nearest = self.nearest_neighbors(x[i_obs, :])
+            class_values = {}
+            for dist, y_class in nearest:
+                if not y_class in class_values:
+                    class_values[y_class] = 0
+                class_values[y_class] += self.weight(dist)
+
+            best_class, best_value = None, None
+            for y_class, y_value in class_values.items():
+                if best_value is None or y_value > best_value:
+                    best_class, best_value = y_class, y_value
+            predictions[i_obs] = best_class
+
+        return predictions
+
+    def reset(self):
+        self.x = np.array([[]])
+        self.y = np.array([[]])
 
 
 class ThetaGenerator(object):
