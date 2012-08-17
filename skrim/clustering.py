@@ -1,6 +1,5 @@
 import numpy as np
 from abc import abstractmethod
-from math import floor
 
 from skrimutils import euclidean_distance
 
@@ -19,7 +18,7 @@ class Clusterer(object):
 
 class KMeansClusterer(Clusterer):
 
-    def __init__(self, k, n_iter, dist_fun = None):
+    def __init__(self, k, n_iter):
         """
             k: the number of clusters to create
                 NOTE: it is possible (though unlikely) that the actual number of clusters created will be
@@ -28,20 +27,19 @@ class KMeansClusterer(Clusterer):
         """
         self.k = k
         self.n_iter = n_iter
-        self.dist_fun = dist_fun or euclidean_distance
 
     def cluster(self, x):
 
         m = x.shape[0]
 
-        best_clusters = np.zeros(m)
+        best_clusters = np.zeros(m, dtype=np.int)
         best_cost = None
 
         for cluster_iter in range(self.n_iter):
             # initialize random starting points for clusters
-            centroid_indices = np.vectorize(floor)(m * np.random.sample(self.k))
+            centroid_indices = np.vectorize(int)(m * np.random.sample(self.k))
             centroids = x[centroid_indices, :]
-            clusters = np.zeros(m)
+            clusters = np.zeros(m, dtype=np.int)
 
             # compute clusters based on this initialization
             while True:
@@ -74,7 +72,7 @@ class KMeansClusterer(Clusterer):
 
             # find total cost of prediction for these initial values
             # and update best estimate if necessary
-            predicted_values = np.array(x.shape)
+            predicted_values = np.zeros(x.shape)
             for i in xrange(m):
                 predicted_values[i] = centroids[clusters[i]]
             prediction_errors = predicted_values - x
@@ -85,4 +83,3 @@ class KMeansClusterer(Clusterer):
 
         # finally, after all iterations are complete, return the clustering that produced the lowest cost
         return best_clusters
-
