@@ -1,8 +1,6 @@
 import numpy as np
 from abc import abstractmethod
 
-from skrimutils import euclidean_distance
-
 
 class Clusterer(object):
 
@@ -30,7 +28,7 @@ class KMeansClusterer(Clusterer):
 
     def cluster(self, x):
 
-        m = x.shape[0]
+        m, n = x.shape
 
         best_clusters = np.zeros(m, dtype=np.int)
         best_cost = None
@@ -43,12 +41,12 @@ class KMeansClusterer(Clusterer):
 
             # compute clusters based on this initialization
             while True:
-                old_clusters = clusters
+                old_clusters = np.copy(clusters)
 
                 # find the closest centroid for each element
                 for i in xrange(m):
-                    distances = np.sqrt(np.sum((centroids - x[i, :]) ** 2, 1))
-                    closest_centroid = np.argmax(distances, 0)
+                    distances = np.sqrt(np.sum((centroids - x[i, :].reshape((1, n))) ** 2, 1))
+                    closest_centroid = np.argmin(distances, 0)
                     clusters[i] = closest_centroid
 
                 # stop once the clusters are done changing
@@ -57,18 +55,18 @@ class KMeansClusterer(Clusterer):
 
                 # re-center the centroids based on their new points
                 centroid_totals = np.zeros(centroids.shape)
-                centroid_counts = np.zeros((centroids.shape[0], 1))
+                centroid_counts = np.zeros(centroids.shape[0])
                 for i in xrange(m):
-                    centroid = centroids[i]
-                    centroid_totals[centroid] += x[i]
-                    centroid_counts[centroid] += 1
+                    cluster = clusters[i]
+                    centroid_totals[cluster] += x[i]
+                    centroid_counts[cluster] += 1
 
                 # remove any centroids that have no elements
                 centroids_to_keep = centroid_counts != 0
-                centroid_totals = centroid_totals[centroids_to_keep]
-                centroid_counts = centroid_counts[centroids_to_keep]
+                centroid_totals = centroid_totals[centroids_to_keep, :]
+                centroid_counts = centroid_counts[centroids_to_keep, :]
 
-                centroids = centroid_totals / centroid_counts
+                centroids = centroid_totals / centroid_counts.reshape((centroid_counts.shape[0], 1))
 
             # find total cost of prediction for these initial values
             # and update best estimate if necessary
